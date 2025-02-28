@@ -13,7 +13,7 @@ const getInitials = (name) => {
 };
 
 const getRandomColor = () => {
-  const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5'];
+  const colors = ['#B0B0B0'];
   return colors[Math.floor(Math.random() * colors.length)];
 };
 
@@ -273,7 +273,7 @@ const Users = () => {
                       />
                     ) : (
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold mr-3 border-2 border-gray-200"
+                        className="w-10 h-10 rounded-full   object-cover border-2 border-gray-200 flex items-center justify-center text-white font-bold shadow-md mr-3"
                         style={{ backgroundColor: getRandomColor() }}
                       >
                         {getInitials(user.username)}

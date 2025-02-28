@@ -116,7 +116,29 @@ const Profile = ({ setUser }) => {
       }
     });
   }, [location, navigate, setUser]); // Depend on location to catch redirect
-
+  useEffect(() => {
+    const highlight = location.state?.highlight;
+    const searchQuery = location.state?.searchQuery;
+    const section = location.state?.section;
+    if (highlight && searchQuery) {
+      setActiveTab(highlight); // Switch to the highlighted tab
+      // Highlight specific sections (e.g., add a class or style):
+      if (section === 'twoFactor') {
+        // Highlight 2FA text, e.g., in the 2FA div or button
+        // Use a ref or state to apply `bg-yellow-200` to elements containing "2FA"
+      } else if (section === 'passwordManagement') {
+        // Highlight Password Management text or form elements
+      } else if (section === 'avatars') {
+        // Highlight Avatars grid or buttons
+      } else if (section === 'profilePhoto') {
+        // Highlight Profile Photo section or image
+      } else if (section === 'username') {
+        // Highlight Username input
+      } else if (section === 'loginHistory') {
+        // Highlight Login History button or modal content
+      }
+    }
+  }, [location.state, setActiveTab]);
   const getInitials = (name = '') => {
     if (!name) return '??';
     const names = name.split(' ');

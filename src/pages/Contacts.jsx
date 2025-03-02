@@ -433,39 +433,57 @@ useEffect(() => {
         <div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border">
             <style>{customCheckboxStyles}</style>
             <div className="max-w-7xl mx-auto">
-                <div className="bg-white shadow-lg rounded-xl p-6 mb-8 flex justify-between items-center transform hover:shadow-xl transition-shadow">
-                    <h1 className="text-3xl font-bold text-gray-800">Contacts</h1>
-                    <div className="flex space-x-4">
-                        <div className="relative">
-                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={handleSearchChange}
-                                placeholder="Search by name..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                            />
-                        </div>
-                        <button
-                            onClick={() => setShowForm(true)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors shadow-md"
-                        >
-                            <FaPlus className="mr-2" /> Create Contact
-                        </button>
-                        <button
-                            onClick={() => setShowImportModal(true)} // Import Button
-                            className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-purple-700 transition-colors shadow-md"
-                        >
-                            <FaUpload className="mr-2" /> Import
-                        </button>
-                        <button
-                            onClick={handleExport}
-                            className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700 transition-colors shadow-md"
-                        >
-                            <FaDownload className="mr-2" /> Export
-                        </button>
-                    </div>
-                </div>
+            <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 transform transition-all duration-300 hover:shadow-xl">
+  {/* Title */}
+  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 whitespace-nowrap">
+    Contacts
+  </h1>
+
+  {/* Search and Actions */}
+  <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+    {/* Search Input */}
+    <div className="relative w-full sm:w-64">
+      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={handleSearchChange}
+        placeholder="Search by name..."
+        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200 hover:border-gray-400"
+      />
+    </div>
+
+    {/* Buttons Group */}
+    <div className="flex flex-wrap gap-2 sm:gap-3 justify-end w-full sm:w-auto">
+      {/* Create Contact Button */}
+      <button
+        onClick={() => setShowForm(true)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+      >
+        <FaPlus className="text-sm" />
+        <span className="whitespace-nowrap">Create Contact</span>
+      </button>
+
+      {/* Import Button */}
+      <button
+        onClick={() => setShowImportModal(true)}
+        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+      >
+        <FaUpload className="text-sm" />
+        <span className="whitespace-nowrap">Import</span>
+      </button>
+
+      {/* Export Button */}
+      <button
+        onClick={handleExport}
+        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+      >
+        <FaDownload className="text-sm" />
+        <span className="whitespace-nowrap">Export</span>
+      </button>
+    </div>
+  </div>
+</div>
                 {error && (
                     <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 shadow-md">
                         {error}
@@ -476,111 +494,111 @@ useEffect(() => {
                         {message}
                     </div>
                 )}
-                <div className="bg-white shadow-lg rounded-xl p-6 mb-8 flex items-center justify-between transform hover:shadow-xl transition-shadow duration-300" style={{ position: 'relative', zIndex: 100 }}>
-                <div className="flex items-center space-x-6">
-  {/* Status Filter */}
-  <div className="group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
-    <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
-    <div className="relative">
-      <select
-        value={filters.status}
-        onChange={(e) => handleFilterChange('status', e.target.value)}
-        className="p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm w-32 appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4" /* Added pt-4 for padding */
-      >
-        <option value="">All</option>
-        <option value="Open">Open</option>
-        <option value="Closed">Closed</option>
-      </select>
-      <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Status</span>
+                <div className="bg-white shadow-lg rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transform hover:shadow-xl transition-shadow duration-300" style={{ position: 'relative', zIndex: 100 }}>
+  {/* Filters and Results Count */}
+  <div className="flex flex-wrap gap-6 items-center">
+    {/* Status Filter */}
+    <div className="w-full sm:w-auto group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
+      <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
+      <div className="relative">
+        <select
+          value={filters.status}
+          onChange={(e) => handleFilterChange('status', e.target.value)}
+          className="w-full sm:w-32 p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4"
+        >
+          <option value="">All</option>
+          <option value="Open">Open</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Status</span>
+      </div>
     </div>
-  </div>
 
-  {/* Date Filters */}
-  <div className="flex space-x-4">
-    <div className="relative">
-      <input
-        type="date"
-        value={filters.startDate}
-        onChange={(e) => handleFilterChange('startDate', e.target.value)}
-        className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm w-36 transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4" /* Added pt-4 for padding */
-      />
-      <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Start Date</span>
+    {/* Date Filters */}
+    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4">
+      <div className="relative">
+        <input
+          type="date"
+          value={filters.startDate}
+          onChange={(e) => handleFilterChange('startDate', e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
+        />
+        <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Start Date</span>
+      </div>
+      <div className="relative">
+        <input
+          type="date"
+          value={filters.endDate}
+          onChange={(e) => handleFilterChange('endDate', e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
+        />
+        <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">End Date</span>
+      </div>
     </div>
-    <div className="relative">
-      <input
-        type="date"
-        value={filters.endDate}
-        onChange={(e) => handleFilterChange('endDate', e.target.value)}
-        className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm w-36 transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4" /* Added pt-4 for padding */
-      />
-      <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">End Date</span>
-    </div>
-  </div>
-
 
     {/* Owner Filter */}
-    <div className="transition-all duration-200 hover:scale-105">
-    <Select
-  options={ownerOptions}
-  value={
-    filters.owner === 'all' ? ownerOptions[0] :
-    filters.owner === 'unassigned' ? ownerOptions[1] :
-    ownerOptions.find(opt => opt.value === filters.owner?.id)
-  }
-  onChange={(opt) => handleFilterChange('owner', opt ? (opt.user || opt.value) : 'all')}
-  placeholder="All Owners"
-  className="w-54"
-  styles={{
-    menu: (provided) => ({ ...provided, zIndex: 2000, position: 'absolute', borderRadius: '0.75rem', boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)' }),
-    control: (provided) => ({
-      ...provided,
-      zIndex: 2001,
-      borderRadius: '0.75rem',
-      borderColor: '#d1d5db',
-      background: 'linear-gradient(to bottom right, #f9fafb, #ffffff)',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-      padding: '0.25rem',
-      transition: 'all 0.2s',
-      '&:hover': { borderColor: '#93c5fd' },
-      '&:focus': { borderColor: '#3b82f6', boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.5)' },
-    }),
-    option: (provided, state) => ({
-      ...provided,
-      backgroundColor: state.isFocused ? '#eff6ff' : 'white',
-      color: '#1f2937',
-      '&:hover': { backgroundColor: '#dbeafe' },
-    }),
-  }}
-  isClearable
-/>
+    <div className="w-full sm:w-auto transition-all duration-200 hover:scale-105">
+      <Select
+        options={ownerOptions}
+        value={
+          filters.owner === 'all' ? ownerOptions[0] :
+          filters.owner === 'unassigned' ? ownerOptions[1] :
+          ownerOptions.find(opt => opt.value === filters.owner?.id)
+        }
+        onChange={(opt) => handleFilterChange('owner', opt ? (opt.user || opt.value) : 'all')}
+        placeholder="All Owners"
+        className="w-full sm:w-48"
+        styles={{
+          menu: (provided) => ({ ...provided, zIndex: 2000, position: 'absolute', borderRadius: '0.75rem', boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)' }),
+          control: (provided) => ({
+            ...provided,
+            zIndex: 2001,
+            borderRadius: '0.75rem',
+            borderColor: '#d1d5db',
+            background: 'linear-gradient(to bottom right, #f9fafb, #ffffff)',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+            padding: '0.25rem',
+            transition: 'all 0.2s',
+            '&:hover': { borderColor: '#93c5fd' },
+            '&:focus': { borderColor: '#3b82f6', boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.5)' },
+          }),
+          option: (provided, state) => ({
+            ...provided,
+            backgroundColor: state.isFocused ? '#eff6ff' : 'white',
+            color: '#1f2937',
+            '&:hover': { backgroundColor: '#dbeafe' },
+          }),
+        }}
+        isClearable
+      />
     </div>
 
-  </div>
     {/* Results Count */}
     {!loading && totalContacts > 0 && (
-          <div className="bg-white shadow-md rounded-xl p-2   text-gray-700 text-s">
-            {totalContacts} {totalContacts === 1 ? 'contact' : 'contacts'} found
-          </div>
-        )}
-  {/* Reset Filters Button */}
-  <button
-    id="reset-filters"
-    className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
-    onClick={handleResetFilters}
-  >
-    <FaUndo className="mr-2" /> Reset Filters
-  </button>
-    {/* Delete Selected Button (shown when contacts are selected) */}
+      <div className="bg-white shadow-md rounded-xl p-2 text-gray-700 text-sm">
+        {totalContacts} {totalContacts === 1 ? 'contact' : 'contacts'} found
+      </div>
+    )}
+  </div>
+
+  {/* Action Buttons */}
+  <div className="flex flex-wrap gap-4">
+    <button
+      id="reset-filters"
+      className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+      onClick={handleResetFilters}
+    >
+      <FaUndo className="mr-2" /> Reset Filters
+    </button>
     {selectedContacts.size > 0 && (
-    <div className="p-4 flex justify-end">
       <button
         onClick={handleDeleteSelected}
         className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-700 transition-colors shadow-md"
       >
         <FaTrash className="mr-2" /> ({selectedContacts.size})
       </button>
-    </div>
-  )}
+    )}
+  </div>
 </div>
 
                 <div className="bg-white shadow-lg rounded-xl overflow-hidden transform hover:shadow-xl transition-shadow" style={{ zIndex: 900 }}>
@@ -602,7 +620,7 @@ useEffect(() => {
                                     onChange={handleSelectAll}
                                   />
                                 </th>
-                                {['name', 'email', 'phone', 'owner', 'status', 'Creation date (GMT+1)'].map(col => (
+                                {['name', 'email', 'phone', 'owner', 'status', 'createdAt'].map(col => (
                                     <th
                                         key={col}
                                         onClick={() => {
@@ -644,6 +662,7 @@ useEffect(() => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-gray-700">{contact.email}</td>
+                                    
                                     <td className="px-6 py-4 text-gray-700">{contact.phone || 'N/A'}</td>
                                     <td className="px-6 py-4">
                                         {contact.owner ? (

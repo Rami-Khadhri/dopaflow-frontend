@@ -270,9 +270,9 @@ const NotificationDropdown = () => {
             top: '80px', // Position below the button, with 10px offset
             left: '1000px', // Shift left by adjusting from center, accounting for marginRight
             transform: 'none', // Remove transform since we’re using left for positioning
+            zIndex : 101
           }}
-          aria-labelledby="dropdownNotificationButton"
-        >
+          aria-labelledby="dropdownNotificationButton">
           <div className="block px-4 py-3 font-medium text-center text-gray-800 rounded-t-lg bg-gray-100">
             Notifications
           </div>

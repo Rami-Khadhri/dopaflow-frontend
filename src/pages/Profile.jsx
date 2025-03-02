@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaEnvelope, FaLock, FaShieldAlt, FaHistory, FaQrcode, FaKey, FaCheckCircle, FaTimesCircle, FaCamera, FaImages } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaShieldAlt, FaHistory, FaQrcode, FaKey, FaCheckCircle, FaTimesCircle, FaCamera, FaImages , FaCommentAlt } from 'react-icons/fa';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate, useLocation } from 'react-router-dom'; // Added useLocation
 import api from '../utils/api';
@@ -7,6 +7,14 @@ import avatar1 from '../images/avatar1.png';
 import avatar2 from '../images/avatar2.png';
 import avatar3 from '../images/avatar3.png';
 import avatar4 from '../images/avatar4.png';
+import avatar5 from '../images/avatar5.png';
+import avatar6 from '../images/avatar6.png';
+import avatar7 from '../images/avatar7.png';
+import avatar8 from '../images/avatar8.png';
+import avatar9 from '../images/avatar9.png';
+import avatar10 from '../images/avatar10.png';
+import avatar11 from '../images/avatar11.png';
+import avatar12 from '../images/avatar12.png';
 
 // OtpInput component (unchanged)
 const OtpInput = ({ value, onChange, numInputs = 6 }) => {
@@ -30,6 +38,7 @@ const OtpInput = ({ value, onChange, numInputs = 6 }) => {
 
   return (
     <div className="flex space-x-2">
+       <FaCommentAlt/>
       {Array.from({ length: numInputs }).map((_, i) => (
         <input
           key={i}
@@ -79,6 +88,15 @@ const Profile = ({ setUser }) => {
     { src: avatar2, name: 'avatar2.png' },
     { src: avatar3, name: 'avatar3.png' },
     { src: avatar4, name: 'avatar4.png' },
+    { src: avatar5, name: 'avatar5.png' },
+    { src: avatar6, name: 'avatar6.png' },
+    { src: avatar7, name: 'avatar7.png' },
+    { src: avatar8, name: 'avatar8.png' },
+    { src: avatar9, name: 'avatar9.png' },
+    { src: avatar10, name: 'avatar10.png' },
+    { src: avatar11, name: 'avatar11.png' },
+    { src: avatar12, name: 'avatar12.png' },
+  
   ];
 
   const fetchProfile = async () => {

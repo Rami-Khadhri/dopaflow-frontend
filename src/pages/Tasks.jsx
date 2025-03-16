@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FaPlus, FaCheck, FaEdit, FaTrash, FaUser, FaFilter, FaCalendarAlt, 
   FaSpinner, FaTasks, FaBan, FaExclamationCircle, FaTimes, FaClock, 
-  FaTag, FaFolderOpen, FaChevronDown, FaSearch 
+  FaTag, FaFolderOpen, FaChevronDown, FaSearch ,FaExpandArrowsAlt
 } from 'react-icons/fa';
 import axios from 'axios';
 
@@ -127,12 +127,13 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
   return (
     <>
       <div 
-        className={`group relative px-8 py-6 bg-white rounded-xl shadow-lg border-l-4 ${getPriorityBorderColor(task.priority)} 
-          hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300`}
+        className={`group relative px-6 py-4 bg-white rounded-xl shadow-lg border-l-4 ${getPriorityBorderColor(task.priority)} 
+        hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex flex-col w-full max-w-full`}
       >
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h4 className={`text-lg font-semibold text-gray-800 truncate ${column === 'Cancelled' ? 'line-through' : ''}`}>
+     
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1 pr-4"> {/* Added padding to prevent overlap with buttons */}
+            <h4 className={`text-lg font-semibold text-gray-800 break-words ${column === 'Cancelled' ? 'line-through' : ''}`}>
               {task.title}
             </h4>
           </div>
@@ -144,14 +145,14 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
             </span>
             <button 
               onClick={() => setShowDetails(true)}
-              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              className="p-0 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors duration-200"
               title="View Description"
             >
-              <FaChevronDown className="w-5 h-5" />
+              <FaExpandArrowsAlt className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <div className="space-y-2 text-sm text-gray-500">
+        <div className="space-y-2 text-sm text-gray-500 flex-1">
           <div className="flex items-center space-x-2">
             <FaCalendarAlt className="text-gray-400" />
             <span>{new Date(task.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -161,7 +162,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
             <span>{task.assignedUserUsername || 'Unassigned'}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <FaFolderOpen className="text-gray-400" />
+            <FaFolderOpen  className="text-gray-400 w-4 h-4"  />
             <span>{task.opportunityTitle || 'No opportunity'}</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -169,48 +170,50 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
             <span>{task.typeTask}</span>
           </div>
         </div>
-        <div className="flex justify-end space-x-3 mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {column !== 'Done' && (
+        <div className="mt-4">
+          <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {column !== 'Done' && (
+              <button 
+                onClick={() => onMove(task.id, 'Done')} 
+                className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors duration-200"
+                title="Mark as Done"
+              >
+                <FaCheck className="w-5 h-5" />
+              </button>
+            )}
+            {column !== 'InProgress' && (
+              <button 
+                onClick={() => onMove(task.id, 'InProgress')} 
+                className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors duration-200"
+                title="Move to In Progress"
+              >
+                <FaTasks className="w-5 h-5" />
+              </button>
+            )}
+            {column !== 'Cancelled' && (
+              <button 
+                onClick={() => onMove(task.id, 'Cancelled')} 
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                title="Cancel Task"
+              >
+                <FaBan className="w-5 h-5" />
+              </button>
+            )}
             <button 
-              onClick={() => onMove(task.id, 'Done')} 
-              className="p-2 text-green-600 hover:bg-green-100 rounded-full transition-colors duration-200"
-              title="Mark as Done"
+              onClick={() => onEdit(task)} 
+              className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors duration-200"
+              title="Edit Task"
             >
-              <FaCheck className="w-5 h-5" />
+              <FaEdit className="w-5 h-5" />
             </button>
-          )}
-          {column !== 'InProgress' && (
             <button 
-              onClick={() => onMove(task.id, 'InProgress')} 
-              className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-full transition-colors duration-200"
-              title="Move to In Progress"
+              onClick={() => onDelete(task.id, column)} 
+              className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors duration-200"
+              title="Delete Task"
             >
-              <FaTasks className="w-5 h-5" />
+              <FaTrash className="w-5 h-5" />
             </button>
-          )}
-          {column !== 'Cancelled' && (
-            <button 
-              onClick={() => onMove(task.id, 'Cancelled')} 
-              className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
-              title="Cancel Task"
-            >
-              <FaBan className="w-5 h-5" />
-            </button>
-          )}
-          <button 
-            onClick={() => onEdit(task)} 
-            className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-colors duration-200"
-            title="Edit Task"
-          >
-            <FaEdit className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={() => onDelete(task.id, column)} 
-            className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-colors duration-200"
-            title="Delete Task"
-          >
-            <FaTrash className="w-5 h-5" />
-          </button>
+          </div>
         </div>
       </div>
       <TaskDetailsPopup 

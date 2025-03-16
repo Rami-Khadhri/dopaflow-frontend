@@ -14,7 +14,7 @@ const AIChat = ({ onClose, initialMessage }) => {
   const isSendingRef = useRef(false); // Guard against multiple sends
 
   // Get username from localStorage
-  const userName = localStorage.getItem('username') || 'Bro';
+  const userName = localStorage.getItem('username') || 'User';
 
   // Enhanced text formatting with robust regex
   const formatText = (text) => {

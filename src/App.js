@@ -105,8 +105,8 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
     const results = searchItems.filter(item => item.label.toLowerCase().includes(lowerQuery));
     setSearchResults(results);
     setAISuggestions([
-      { label: `What is "${query}"`, id: 'ai-0' },
-      { label: `Search more for "${query}"`, id: 'ai-1' },
+      { label: `What is ${query}`, id: 'ai-0' },
+      { label: `Search more for ${query}`, id: 'ai-1' },
     ]);
     setIsOpen(true);
   };
@@ -165,9 +165,9 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
             <div
               key={suggestion.id}
               onClick={() => handleAISuggestionClick(suggestion)}
-              className="px-5 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-blue-600 flex items-center border-b border-gray-200 last:border-b-0"
+              className="px-2 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-blue-600 flex items-center border-b border-gray-200 last:border-b-0"
             >
-              <img src={aiIcon} alt="AI" className="w-4 h-4 mr-2" />
+              <img src={aiIcon} alt="AI" className="w-6 h-6 mr-2" />
               {suggestion.label}
             </div>
           ))}
@@ -606,13 +606,19 @@ const fetchUser = async () => {
                 </Routes>
               </div>
               {showAIButton && (
-                <button
-                  onClick={() => setIsAIChatOpen(true)}
-                  className="fixed bottom-10 right-10 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all duration-300"
-                >
-                  <img src={aiIcon} alt="AI" className="w-8 h-8" />
-                </button>
-              )}
+        <button
+          onClick={() => setIsAIChatOpen(true)}
+          className="neon-spinner"
+        >
+          <div className="spinner-layers">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <img src={aiIcon} alt="AI" className="w-12 h-10" />
+        </button>
+      )}
               {isAIChatOpen && <AIChat onClose={() => setIsAIChatOpen(false)} initialMessage={initialChatMessage} />}
             </main>
           </div>

@@ -348,7 +348,7 @@ const Opportunities = () => {
   }, [allOpportunities]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-8 font-sans antialiased rounded-[12px] border">
+    <div className="min-h-creen bg-gradient-to-br from-gray-100 to-gray-200 p-8 font-sans antialiased rounded-[12px] border">
       {/* Header Section */}
       <header className="flex justify-between items-center mb-10">
         <div>
@@ -595,7 +595,7 @@ const Opportunities = () => {
           {stages.map((stage) => (
             <div
               key={stage.id}
-              className={`${stage.color} p-4 rounded-xl shadow-lg border border-gray-100/50 min-h-[200px] transition-all duration-300 hover:shadow-xl`}
+              className={`${stage.color} p-4 rounded-xl shadow-lg border  border-gray-100/50 min-h-[200px] transition-all duration-300 hover:shadow-xl`}
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800 tracking-tight">{stage.name}</h2>
@@ -603,11 +603,11 @@ const Opportunities = () => {
                   {stage.opportunities.length}
                 </span>
               </div>
-              <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-gray-100">
+              <div className="space-y-4 max-h-[calc(100vh-300px)]  overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-gray-100">
                 {stage.opportunities.map((opp) => (
                   <div
                     key={opp.id}
-                    className="bg-white p-4 rounded-lg shadow-md border border-gray-200/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
+                    className="bg-white p-4 rounded-lg w-72 shadow-md border border-gray-200/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg"
                   >
                     <div className="flex justify-between items-start space-x-3">
                       <div className="flex-1">

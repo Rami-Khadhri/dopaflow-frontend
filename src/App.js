@@ -588,7 +588,6 @@ const fetchUser = async () => {
               </div>
               <div className="max-w-7xl mx-auto">
                 <Routes>
-                  <Route path="/verify-email" element={<VerifyEmail />} />
                   <Route path="/profile" element={<ProtectedRoute fetchUser={fetchUser}><Profile setUser={setUser} /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['SuperAdmin', 'Admin']} fetchUser={fetchUser}><Dashboard /></ProtectedRoute>} />
                   <Route path="/" element={<ProtectedRoute fetchUser={fetchUser}><Profile setUser={setUser} /></ProtectedRoute>} />

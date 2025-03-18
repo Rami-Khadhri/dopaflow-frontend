@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import aiIcon from './images/ai-icon.png'; // Adjust path if needed
+import aiIcon from './images/ai-icon.png'; // Ensure this exists in your project
 
 const AIChat = ({ onClose, initialMessage }) => {
   const [messages, setMessages] = useState([]);
@@ -11,12 +11,11 @@ const AIChat = ({ onClose, initialMessage }) => {
   const [error, setError] = useState(null);
   const chatRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const isSendingRef = useRef(false); // Guard against multiple sends
+  const isSendingRef = useRef(false);
 
-  // Get username from localStorage
   const userName = localStorage.getItem('username') || 'User';
 
-  // Enhanced text formatting with robust regex
+  // Text formatting for bold/italic
   const formatText = (text) => {
     let cleanedText = text.replace(/undefined/g, '').trim();
     let parts = [cleanedText];
@@ -32,11 +31,7 @@ const AIChat = ({ onClose, initialMessage }) => {
         return part.split(pattern).map((subPart, index) => {
           if (subPart.match(pattern)) {
             const content = subPart.replace(strip, '');
-            return (
-              <span key={index} className={`${style} text-blue-700`}>
-                {content}
-              </span>
-            );
+            return <span key={index} className={`${style} text-teal-700`}>{content}</span>;
           }
           return subPart;
         });
@@ -44,18 +39,12 @@ const AIChat = ({ onClose, initialMessage }) => {
     });
 
     return parts.map((part, index) =>
-      typeof part === 'string' ? (
-        <span key={index} className="text-gray-700">
-          {part}
-        </span>
-      ) : (
-        part
-      )
+      typeof part === 'string' ? <span key={index} className="text-gray-700">{part}</span> : part
     );
   };
 
-  // Typewriter effect for AI responses
-  const Typewriter = ({ text, speed = 20 }) => {
+  // Enhanced Typewriter effect with adjustable speed
+  const Typewriter = ({ text, speed = 15 }) => {
     const [displayText, setDisplayText] = useState('');
     const [isTyping, setIsTyping] = useState(true);
 
@@ -76,128 +65,153 @@ const AIChat = ({ onClose, initialMessage }) => {
     }, [text, speed]);
 
     return (
-      <span>
+      <span className="relative">
         {formatText(displayText)}
-        {isTyping && <span className="animate-pulse text-blue-500 ml-1">✦</span>}
+        {isTyping && <span className="animate-pulse text-teal-500 ml-1">✦</span>}
       </span>
     );
   };
 
-  // Send message to backend with guard
+  // Enhanced Search Animation with smoother animation
+  const SearchAnimation = () => (
+    <div className="flex justify-start mb-4">
+      <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 flex items-center space-x-3 transition-all duration-300 hover:shadow-lg">
+        <span className="text-2xl animate-bounce ease-in-out">🔍</span>
+        <span className="text-gray-700 font-medium animate-pulse">Digging through the web...</span>
+      </div>
+    </div>
+  );
+
+  // Enhanced SourceCard with hover effects
+  const SourceCard = ({ text }) => {
+    const lines = text.split('\n');
+    let results = [];
+    let currentResult = {};
+
+    lines.forEach((line) => {
+      if (line.match(/^\d+\.\s*\*\*/)) {
+        if (Object.keys(currentResult).length > 0) results.push(currentResult);
+        currentResult = { title: line.replace(/^\d+\.\s*\*\*(.*)\*\*$/, '$1') };
+      } else if (line.startsWith('Link: ')) {
+        currentResult.link = line.replace('Link: ', '').trim();
+      } else if (line.startsWith('Snippet: ')) {
+        currentResult.snippet = line.replace('Snippet: ', '').trim();
+      } else if (line.startsWith('Image: ')) {
+        currentResult.image = line.replace('Image: ', '').trim();
+      }
+    });
+    if (Object.keys(currentResult).length > 0) results.push(currentResult);
+
+    return (
+      <div className="space-y-3">
+        {results.length > 0 ? (
+          results.map((result, index) => (
+            <div
+              key={index}
+              className="p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-100 hover:shadow-md transition-all duration-200"
+            >
+              <a
+                href={result.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-teal-600 font-semibold hover:text-teal-800 hover:underline"
+              >
+                {result.title}
+              </a>
+              {result.snippet && <p className="text-gray-600 text-sm mt-1">{result.snippet}</p>}
+              {result.image && (
+                <img
+                  src={result.image}
+                  alt={result.title}
+                  className="mt-2 w-full h-40 object-cover rounded-md transition-opacity duration-300 hover:opacity-90"
+                  onError={(e) => (e.target.src = 'https://via.placeholder.com/150?text=Image+Not+Found')}
+                />
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-700">{formatText(text)}</p>
+        )}
+      </div>
+    );
+  };
+
   const sendMessage = useCallback(
     async (messageText, requestType = 'chat') => {
-      if (isSendingRef.current) return; // Prevent multiple sends
+      if (isSendingRef.current) return;
       isSendingRef.current = true;
       setLoading(true);
       setError(null);
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No token found—please log in.');
-        }
+        if (!token) throw new Error('No token—log in!');
 
         const res = await axios.post(
           'http://localhost:8080/api/ai/chat',
-          {
-            message: messageText,
-            requestType,
-            username: userName,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { message: messageText, requestType, username: userName },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
-        let aiResponse = res.data.response;
-        if (!aiResponse || aiResponse.includes('undefined')) {
-          aiResponse = `Hey ${userName}, I didn’t catch that—can you say more?`;
-        }
-
+        let aiResponse = res.data.response || `Hey ${userName}, I’m stumped—more details?`;
         setMessages((prev) => [
           ...prev,
           { sender: 'ai', text: aiResponse, isNew: true, type: requestType },
         ]);
       } catch (error) {
-        console.error('Send message error:', error.response?.data || error.message);
-        let errorMessage = 'Failed to connect to AI, bro!';
-        if (error.message === 'No token found—please log in.') {
-          errorMessage = 'Please log in to continue chatting, bro!';
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        } else if (error.response && error.response.status === 401) {
-          errorMessage = 'Your session expired—log in again, bro!';
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        } else if (error.response && error.response.status === 500) {
-          errorMessage = 'Server error—try again later, bro!';
+        console.error('Send error:', error.response?.data || error.message);
+        let errorMessage = 'AI crashed, bro!';
+        if (error.message.includes('token') || error.response?.status === 401) {
+          errorMessage = 'Log in, bro!';
+          setTimeout(() => (window.location.href = '/login'), 2000);
+        } else if (error.response?.status === 500) {
+          errorMessage = 'Server’s down—retry later!';
         }
         setError(errorMessage);
         setMessages((prev) => [
           ...prev,
-          { sender: 'ai', text: `Sorry, something broke, ${userName}!`, isNew: true, type: 'error' },
+          { sender: 'ai', text: `Oops, something broke, ${userName}!`, isNew: true, type: 'error' },
         ]);
       } finally {
         setLoading(false);
-        isSendingRef.current = false; // Reset guard
+        isSendingRef.current = false;
       }
     },
     [userName]
   );
 
-  // Fetch chat history on mount
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No token found—please log in.');
-        }
+        if (!token) throw new Error('No token—log in!');
 
         const res = await axios.get('http://localhost:8080/api/ai/chat', {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const historyData = res.data || [];
-        if (!Array.isArray(historyData)) {
-          throw new Error('Invalid chat history format received from server');
-        }
-
-        const historyMessages = historyData.map((msg) => ({
+        const historyMessages = (res.data || []).map((msg) => ({
           ...msg,
           isNew: false,
           sender: msg.sender || 'unknown',
-          text: msg.text || 'No message content',
+          text: msg.text || 'No content',
           type: msg.type || 'chat',
         }));
         setMessages(historyMessages);
       } catch (error) {
-        console.error('Fetch history error:', error.response?.data || error.message);
-        let errorMessage = 'Couldn’t load your chat history.';
-        if (error.message === 'No token found—please log in.') {
-          errorMessage = 'Please log in to see your chat history, bro!';
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        } else if (error.response && error.response.status === 401) {
-          errorMessage = 'Your session expired—log in again, bro!';
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 2000);
-        } else if (error.response && error.response.status === 500) {
-          errorMessage = 'Server error—try again later, bro!';
+        console.error('History error:', error.response?.data || error.message);
+        let errorMessage = 'History load failed.';
+        if (error.message.includes('token') || error.response?.status === 401) {
+          errorMessage = 'Log in to see history!';
+          setTimeout(() => (window.location.href = '/login'), 2000);
         }
         setError(errorMessage);
       } finally {
         setLoadingHistory(false);
       }
     };
-
     fetchHistory();
   }, []);
 
-  // Handle initial message with uniqueness check
   useEffect(() => {
     if (initialMessage && !loadingHistory) {
       const lastUserMsg = [...messages].reverse().find((msg) => msg.sender === 'user');
@@ -208,12 +222,10 @@ const AIChat = ({ onClose, initialMessage }) => {
     }
   }, [initialMessage, loadingHistory, messages, sendMessage]);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (chatRef.current && !chatRef.current.contains(event.target)) {
@@ -225,31 +237,20 @@ const AIChat = ({ onClose, initialMessage }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
-  // Handle sending user input
   const handleSend = () => {
     if (!input.trim() || loading) return;
-    const userMsg = { sender: 'user', text: input, isNew: false, type: 'chat' };
+    const type = input.toLowerCase().startsWith('search') ? 'suggestion' : 'chat';
+    const userMsg = { sender: 'user', text: input, isNew: false, type };
     setMessages((prev) => [...prev, userMsg]);
-    sendMessage(input, 'chat');
+    sendMessage(input, type);
     setInput('');
   };
 
-  // Handle suggestion click
-  const handleSuggestionClick = (suggestion) => {
-    if (loading) return;
-    const userMsg = { sender: 'user', text: suggestion, isNew: false, type: 'chat' };
-    setMessages((prev) => [...prev, userMsg]);
-    sendMessage(suggestion, 'chat');
-  };
-
-  // Mark all messages as not new after they’ve been displayed
   useEffect(() => {
     if (messages.length > 0 && messages[messages.length - 1].isNew) {
       setTimeout(() => {
         setMessages((prev) =>
-          prev.map((msg, index) =>
-            index === prev.length - 1 ? { ...msg, isNew: false } : msg
-          )
+          prev.map((msg, index) => (index === prev.length - 1 ? { ...msg, isNew: false } : msg))
         );
       }, 2000);
     }
@@ -258,81 +259,50 @@ const AIChat = ({ onClose, initialMessage }) => {
   return (
     <div
       ref={chatRef}
-      className={`fixed bottom-20 right-20 w-[420px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 transition-all duration-300 ${
+      className={`fixed bottom-20 right-32 w-[450px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 transition-all duration-300 ${
         isClosing ? 'opacity-0 translate-y-10' : 'opacity-100 translate-y-0'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center p-4 bg-gradient-to-r from-blue-500 to-blue-400 text-white rounded-t-2xl shadow-md">
-        <img
-          src={aiIcon}
-          alt="AI"
-          className="w-8 h-8 mr-3 transition-transform duration-300 hover:scale-110"
-        />
-        <span className="font-bold text-lg tracking-wide">CRM Assistant</span>
+      <div className="flex items-center p-4 bg-gradient-to-r from-teal-500 to-blue-600 text-white rounded-t-2xl shadow-md">
+        <img src={aiIcon} alt="AI" className="w-8 h-8 mr-3 rounded-full hover:scale-110 transition-transform" />
+        <span className="font-bold text-lg">DopaBot</span>
         <button
           onClick={() => {
             setIsClosing(true);
             setTimeout(onClose, 300);
           }}
-          className="ml-auto p-1 text-white hover:bg-blue-600 rounded-full transition-colors duration-200"
+          className="ml-auto p-1 hover:bg-teal-700 rounded-full transition-colors"
         >
           <span className="material-icons-round">close</span>
         </button>
       </div>
 
-      {/* Chat Area */}
-      <div className="p-5 h-[450px] overflow-y-auto bg-gray-50 relative">
+      <div className="p-5 h-[450px] overflow-y-auto bg-gray-50">
         {loadingHistory ? (
           <div className="flex justify-center py-6">
             <div className="flex space-x-2">
-              <div
-                className="w-3 h-3 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: '0s' }}
-              ></div>
-              <div
-                className="w-3 h-3 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: '0.2s' }}
-              ></div>
-              <div
-                className="w-3 h-3 bg-blue-400 rounded-full animate-bounce"
-                style={{ animationDelay: '0.4s' }}
-              ></div>
+              <div className="w-3 h-3 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+              <div className="w-3 h-3 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-3 h-3 bg-teal-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
         ) : messages.length === 0 ? (
-          <p className="text-gray-500 text-center py-8 transition-all duration-300 hover:text-gray-700">
-            Hey {userName}, I’m DopaBot—your CRM buddy! What’s up? 🚀
+          <p className="text-gray-500 text-center py-8 hover:text-gray-700 transition-all">
+            Hey {userName}, I’m DopaBot—your CRM wingman! What’s up? 🚀
           </p>
         ) : (
           messages.map((msg, index) => (
             <div
               key={index}
-              className={`flex ${
-                msg.sender === 'user' ? 'justify-end' : 'justify-start'
-              } mb-4 transition-all duration-300 hover:scale-[1.02]`}
+              className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4 hover:scale-[1.02] transition-all`}
             >
               <div
                 className={`max-w-[85%] p-4 rounded-xl shadow-md ${
-                  msg.sender === 'user'
-                    ? 'bg-blue-100 text-blue-900'
-                    : 'bg-white text-gray-700 border border-gray-200'
+                  msg.sender === 'user' ? 'bg-teal-100 text-teal-900' : 'bg-white text-gray-700 border border-gray-200'
                 }`}
               >
-                {msg.sender === 'ai' && msg.type === 'suggestion' && !msg.isNew ? (
-                  <div className="flex flex-col space-y-2">
-                    {msg.text.split('\n').map((suggestion, i) => (
-                      suggestion.trim() && (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestionClick(suggestion.trim())}
-                          className="bg-blue-100 text-blue-700 p-2 rounded hover:bg-blue-200 transition-colors duration-200"
-                        >
-                          {suggestion.trim()}
-                        </button>
-                      )
-                    ))}
-                  </div>
+                {msg.sender === 'ai' && msg.type === 'search' && !msg.isNew ? (
+                  <SourceCard text={msg.text} />
                 ) : msg.sender === 'ai' && msg.isNew && !loading ? (
                   <Typewriter text={msg.text} />
                 ) : (
@@ -342,31 +312,19 @@ const AIChat = ({ onClose, initialMessage }) => {
             </div>
           ))
         )}
-        {loading && (
+        {loading && (messages[messages.length - 1]?.type === 'search' ? <SearchAnimation /> : (
           <div className="flex justify-start mb-4">
             <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 flex space-x-2">
-              <div
-                className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
-                style={{ animationDelay: '0s' }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
-                style={{ animationDelay: '0.2s' }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"
-                style={{ animationDelay: '0.4s' }}
-              ></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           </div>
-        )}
-        {error && (
-          <p className="text-red-500 text-center py-2 animate-pulse">{error}</p>
-        )}
+        ))}
+        {error && <p className="text-red-500 text-center py-2 animate-pulse">{error}</p>}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl shadow-inner">
         <div className="flex space-x-3">
           <input
@@ -374,13 +332,13 @@ const AIChat = ({ onClose, initialMessage }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Ask away, ${userName}!`}
-            className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:outline-none transition-all duration-200 hover:border-blue-400"
+            placeholder={`Ask whatever you want, ${userName.split(" ")[0]}`}
+            className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-400 focus:outline-none hover:border-teal-400 transition-all"
             disabled={loading}
           />
           <button
             onClick={handleSend}
-            className="p-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transform hover:scale-105 transition-all duration-200"
+            className="p-3 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transform hover:scale-105 transition-all"
             disabled={loading}
           >
             <span className="material-icons-round">send</span>

@@ -163,7 +163,12 @@ const Opportunities = () => {
       setIsLoading(false);
     }
   };
-
+  const handleBackToAssignPopup = () => {
+    setShowExistingOpportunities(false); // Close existing opportunities modal
+    setShowForm(false); // Close new opportunity form
+    setShowAssignPopup(true); // Return to assign popup
+    // Note: preselectedContactId and preselectedContactName are preserved in state
+  };
   const applyFilters = (opportunities) => {
     let filtered = [...opportunities];
     if (filters.priority) filtered = filtered.filter((opp) => opp.priority === filters.priority);
@@ -725,7 +730,7 @@ const Opportunities = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Assign {preselectedContactName} to Existing Opportunity</h2>
               <button
-                onClick={handleCancelAssignPopup}
+                onClick={handleBackToAssignPopup}
                 className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
               >
                 <FaTimes size={24} />
@@ -765,7 +770,7 @@ const Opportunities = () => {
                 {editingOpportunityId ? 'Edit Opportunity' : 'Add New Opportunity'}
               </h2>
               <button
-                onClick={() => setShowForm(false)}
+              onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => setShowForm(false)}
                 className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
               >
                 <FaTimes size={24} />
@@ -876,10 +881,10 @@ const Opportunities = () => {
               <div className="flex justify-end space-x-4">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => setShowForm(false)}
                   className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   type="submit"

@@ -42,10 +42,10 @@ const getPriorityBorderColor = (priority) => {
 
 const getStatusColor = (status) => {
   switch (status) {
-    case 'ToDo': return 'bg-blue-500';
-    case 'InProgress': return 'bg-yellow-300';
-    case 'Done': return 'bg-green-500';
-    case 'Cancelled': return 'bg-red-500';
+    case 'ToDo': return 'bg-blue-200';
+    case 'InProgress': return 'bg-yellow-100';
+    case 'Done': return 'bg-green-200';
+    case 'Cancelled': return 'bg-gray-200';
     default: return 'bg-gray-500';
   }
 };
@@ -92,7 +92,7 @@ const TaskDetailsPopup = ({ task, show, onClose, column }) => (
           <FaUser className="text-gray-400" />
           <span>
             <span className="font-medium">Assigned To: </span>
-            {task.assignedUserUsername || 'Unassigned'}
+             {task.assignedUserUsername || 'Unassigned'}
           </span>
         </div>
         <div className="flex items-center space-x-3">
@@ -344,7 +344,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opp
             onChange={(e) => setNewTask({ ...newTask, assignedUserId: e.target.value })}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
               focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            required
+       
           >
             <option value="">Select a user</option>
             {users.map(user => (
@@ -359,7 +359,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opp
             onChange={(e) => setNewTask({ ...newTask, opportunityId: e.target.value })}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
               focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            required
+ 
           >
             <option value="">Select an opportunity</option>
             {opportunities.map(opportunity => (
@@ -489,7 +489,7 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users, 
               onChange={(e) => setEditTask({ ...editTask, assignedUserId: e.target.value })}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
                 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              required
+           
             >
               <option value="">Select a user</option>
               {users.map(user => (
@@ -730,7 +730,7 @@ const Tasks = () => {
 
   if (loading && !tasks.ToDo.length) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-100">
+      <div className="flex flex-col items-center justify-center min-h-screen  bg-gradient-to-br from-gray-50 to-blue-100">
         <FaSpinner className="animate-spin text-6xl text-blue-600 mb-4" />
         <span className="text-xl font-semibold text-gray-700">Loading data...</span>
       </div>

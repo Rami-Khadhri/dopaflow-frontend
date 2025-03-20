@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   FaPlus, FaCheck, FaEdit, FaTrash, FaUser, FaFilter, FaCalendarAlt, 
   FaSpinner, FaTasks, FaBan, FaExclamationCircle, FaTimes, FaClock, 
-  FaTag, FaFolderOpen, FaChevronDown, FaSearch ,FaExpandArrowsAlt
+  FaTag, FaFolderOpen, FaChevronDown, FaSearch, FaExpandArrowsAlt
 } from 'react-icons/fa';
 import axios from 'axios';
 
@@ -40,10 +41,19 @@ const getPriorityBorderColor = (priority) => {
   }
 };
 
+const getHighlightColor = (priority) => {
+  switch (priority) {
+    case 'HIGH': return 'bg-red-200 border-red-400'; // Lighter, semi-transparent red
+    case 'MEDIUM': return 'bg-yellow-200 border-yellow-400'; // Lighter yellow
+    case 'LOW': return 'bg-green-300 border-green-400'; // Lighter green
+    default: return 'bg-gray-200 border-gray-400';
+  }
+};
+
 const getStatusColor = (status) => {
   switch (status) {
     case 'ToDo': return 'bg-blue-200';
-    case 'InProgress': return 'bg-yellow-100';
+    case 'InProgress': return 'bg-yellow-50';
     case 'Done': return 'bg-green-200';
     case 'Cancelled': return 'bg-gray-200';
     default: return 'bg-gray-500';
@@ -121,18 +131,18 @@ const TaskDetailsPopup = ({ task, show, onClose, column }) => (
 );
 
 // Task Card Component
-const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
+const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted }) => {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
     <>
       <div 
         className={`group relative px-6 py-4 bg-white rounded-xl shadow-lg border-l-4 ${getPriorityBorderColor(task.priority)} 
-        hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex flex-col w-full max-w-full`}
+        hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex flex-col w-full max-w-full
+        ${isHighlighted ? `${getHighlightColor(task.priority)} animate-pulse` : ''}`}
       >
-     
         <div className="flex justify-between items-start mb-3">
-          <div className="flex-1 pr-4"> {/* Added padding to prevent overlap with buttons */}
+          <div className="flex-1 pr-4">
             <h4 className={`text-lg font-semibold text-gray-800 break-words ${column === 'Cancelled' ? 'line-through' : ''}`}>
               {task.title}
             </h4>
@@ -162,7 +172,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
             <span>{task.assignedUserUsername || 'Unassigned'}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <FaFolderOpen  className="text-gray-400 w-4 h-4"  />
+            <FaFolderOpen className="text-gray-400 w-4 h-4" />
             <span>{task.opportunityTitle || 'No opportunity'}</span>
           </div>
           <div className="flex items-center space-x-2">
@@ -227,7 +237,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column }) => {
 };
 
 // Task Column Component
-const TaskColumn = ({ column, tasksList, onMove, onEdit, onDelete }) => (
+const TaskColumn = ({ column, tasksList, onMove, onEdit, onDelete, highlightedTaskId }) => (
   <div 
     className={`bg-white rounded-2xl shadow-lg p-6 border-t-4 ${getStatusColor(column)} 
       transition-all duration-300 hover:shadow-xl`}
@@ -253,6 +263,7 @@ const TaskColumn = ({ column, tasksList, onMove, onEdit, onDelete }) => (
             onEdit={onEdit} 
             onDelete={onDelete} 
             column={column} 
+            isHighlighted={task.id.toString() === highlightedTaskId}
           />
         ))
       )}
@@ -260,7 +271,7 @@ const TaskColumn = ({ column, tasksList, onMove, onEdit, onDelete }) => (
   </div>
 );
 
-// Add Task Modal Component
+// Add Task Modal Component (unchanged)
 const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opportunities, loading }) => (
   <div 
     className={`fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center transition-all duration-500 
@@ -344,7 +355,6 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opp
             onChange={(e) => setNewTask({ ...newTask, assignedUserId: e.target.value })}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
               focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-       
           >
             <option value="">Select a user</option>
             {users.map(user => (
@@ -359,7 +369,6 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opp
             onChange={(e) => setNewTask({ ...newTask, opportunityId: e.target.value })}
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
               focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
- 
           >
             <option value="">Select an opportunity</option>
             {opportunities.map(opportunity => (
@@ -402,7 +411,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users, opp
   </div>
 );
 
-// Edit Task Modal Component
+// Edit Task Modal Component (unchanged)
 const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users, opportunities, loading }) => {
   if (!show || !editTask) return null;
 
@@ -489,7 +498,6 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users, 
               onChange={(e) => setEditTask({ ...editTask, assignedUserId: e.target.value })}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
                 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-           
             >
               <option value="">Select a user</option>
               {users.map(user => (
@@ -564,6 +572,8 @@ const Tasks = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [highlightedTaskId, setHighlightedTaskId] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -572,7 +582,16 @@ const Tasks = () => {
       setLoading(false);
     };
     fetchData();
-  }, []);
+
+    const { highlightTaskId } = location.state || {};
+    if (highlightTaskId) {
+      setHighlightedTaskId(highlightTaskId);
+      const timer = setTimeout(() => {
+        setHighlightedTaskId(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [location]);
 
   const fetchTasks = async () => {
     try {
@@ -730,7 +749,7 @@ const Tasks = () => {
 
   if (loading && !tasks.ToDo.length) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen  bg-gradient-to-br from-gray-50 to-blue-100">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-100">
         <FaSpinner className="animate-spin text-6xl text-blue-600 mb-4" />
         <span className="text-xl font-semibold text-gray-700">Loading data...</span>
       </div>
@@ -819,6 +838,7 @@ const Tasks = () => {
             onMove={handleMoveTask}
             onEdit={handleEditClick}
             onDelete={handleDeleteTask}
+            highlightedTaskId={highlightedTaskId}
           />
         ))}
       </div>

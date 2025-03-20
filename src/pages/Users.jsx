@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FaEdit, FaTrash, FaUserPlus, FaSpinner, FaBan, FaUserCheck, FaCheck, 
-  FaTimes, FaSearch, FaUser, FaEnvelope, FaTag, FaCalendarAlt, FaClock
+  FaTimes, FaSearch, FaUser, FaEnvelope, FaTag, FaCalendarAlt, FaClock, FaCircle
 } from 'react-icons/fa';
 import axios from 'axios';
 
@@ -37,7 +37,7 @@ const formatLastActive = (lastActive, isOnline) => {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
 
-  if (diffMins < 1) return { text: '1m', color: '#22c55e' }; // Green for <1h
+  if (diffMins < 1) return { text: 'now', color: '#22c55e' }; // Green for <1h
   if (diffMins < 60) return { text: `${diffMins}m`, color: '#22c55e' }; // Green for <1h
   if (diffHours < 24) return { text: `${diffHours}h`, color: '#6b7280' }; // Gray for 1-24h
   return null; // No text for >24h or never connected
@@ -76,7 +76,7 @@ const UserProfilePopup = ({ user, show }) => {
               </div>
             )}
           </div>
-          <div className="absolute -bottom-1 -right-1 flex items-center">
+          <div className="absolute -bottom-0 -right-0 flex items-center">
             {user.isOnline && (
               <span 
                 className="w-4 h-4 rounded-full border-2 border-white shadow-md transition-all duration-300 bg-green-500"
@@ -137,7 +137,7 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading 
                 </div>
               )}
             </div>
-            <div className="absolute -bottom-2 -right-2 flex items-center">
+            <div className="absolute -bottom-0 -right-0 flex items-center">
               {user.isOnline && (
                 <span
                   className="w-6 h-6 rounded-full border-3 border-white shadow-lg transition-all duration-300 bg-green-500"
@@ -145,7 +145,7 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading 
               )}
               {!user.isOnline && lastActive && (
                 <span
-                  className="ml-2 text-sm font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700 shadow-sm"
+                  className="ml-1 text-sm font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700 shadow-sm"
                   style={{ color: lastActive.color }}
                 >
                   {lastActive.text}
@@ -593,12 +593,25 @@ const Users = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden max-w-7xl mx-auto" style={{ overflow: 'visible' }}>
-        <div className="p-4 bg-gray-50 border-b border-gray-200">
-          <span className="text-lg font-semibold text-gray-700">
-            Online Users: <span className="text-green-600">{onlineUsersCount}</span> / {filteredUsers.length}
-          </span>
-        </div>
+<div
+  className="bg-white rounded-t-2xl shadow-md overflow-hidden max-w-7xl mx-auto"
+  style={{ overflow: 'visible', fontFamily: "'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+>
+  <div className="p-4 flex items-center justify-between">
+    <div className="flex items-center space-x-2">
+      <FaUser className="text-gray-600 text-lg" />
+      <div className="flex items-center space-x-1">
+      <FaCircle className="text-green-500 text-xs" />
+     </div>
+      <span className="text-lg font-semibold text-gray-800">
+        Online Users:{' '}
+        <span className="text-green-600">{onlineUsersCount}</span>{' '}
+        <span className="text-gray-500">/ {filteredUsers.length}</span>
+        
+      </span>
+    </div>
+  </div>
+
 
         {loading && (
           <div className="flex justify-center py-4">
@@ -646,7 +659,7 @@ const Users = () => {
                             </div>
                           )}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 flex items-center">
+                        <div className="absolute -bottom-0 -right-0 flex items-center">
                           {user.isOnline && (
                             <span
                               className="w-4 h-4 rounded-full border-2 border-white shadow-md transition-all duration-300 bg-green-500"
@@ -723,8 +736,8 @@ const Users = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center transition-all duration-500 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg transform transition-all duration-300 scale-95 animate-scaleIn">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-fit transform transition-all duration-300 scale-95 animate-scaleIn">
+            <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center">
               {editingUser ? <><FaEdit className="mr-2 text-blue-600" /> Edit User</> : <><FaUserPlus className="mr-2 text-blue-600" /> Create New User</>}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">

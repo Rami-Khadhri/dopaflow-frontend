@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FaPlus, FaSearch, FaFilter, FaTrash, FaEdit, FaDownload,
   FaSpinner, FaUser, FaEnvelope, FaPhone, FaBuilding, FaStickyNote,
-  FaUndo, FaUpload, FaClock, FaCalendarAlt, FaInfoCircle
+  FaUndo, FaUpload, FaClock, FaCalendarAlt, FaInfoCircle, FaTimes
 } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -54,6 +54,15 @@ const customStyles = `
   }
 `;
 
+// Debounce utility
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
 // Main Component
 const Contacts = () => {
   // State
@@ -87,6 +96,11 @@ const Contacts = () => {
   const [totalContacts, setTotalContacts] = useState(0);
   const [selectedContacts, setSelectedContacts] = useState(new Set());
   const navigate = useNavigate();
+
+  // Debounced setSelectedContact
+  const debouncedSetSelectedContact = debounce((contact) => {
+    setSelectedContact(contact);
+  }, 200);
 
   // Fetch Functions
   const getBaseParams = useCallback(() => ({
@@ -203,12 +217,17 @@ const Contacts = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        setSelectedContact(null);
+      try {
+        if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+          setSelectedContact(null);
+        }
+      } catch (err) {
+        console.error('Error in handleClickOutside:', err);
+        setError('An error occurred while handling the sidebar. Please try again.');
       }
     };
 
-    if (selectedContact) {
+    if (selectedContact && sidebarRef.current) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
@@ -423,25 +442,21 @@ const Contacts = () => {
       setLoading(false);
     }
   };
+
   const handleCreateOpportunity = () => {
     if (selectedContacts.size === 1) {
-      const contactId = [...selectedContacts][0]; // Get the single selected contact ID
+      const contactId = [...selectedContacts][0];
       const contact = contacts.find(c => c.id === contactId);
       if (contact) {
         console.log('Navigating to Opportunities with contact:', contact);
         navigate(`/opportunities?assign=true&contactId=${contact.id}`);
-        console.log('Navigating to:', `/opportunities?assign=true&contactId=${contact.id}`);
-      } else {
-        console.warn('Contact not found for selected ID:', contactId);
       }
     } else if (selectedContact) {
       console.log('Navigating to Opportunities with contact:', selectedContact);
       navigate(`/opportunities?assign=true&contactId=${selectedContact.id}`);
-      console.log('Navigating to:', `/opportunities?assign=true&contactId=${selectedContact.id}`);
-    } else {
-      console.warn('No contact selected for assignment.');
     }
   };
+
   // Render
   return (
     <div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border">
@@ -574,35 +589,35 @@ const Contacts = () => {
             )}
           </div>
           <div className="flex flex-wrap gap-4">
-  <button
-    id="reset-filters"
-    className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
-    onClick={handleResetFilters}
-  >
-    <FaUndo className="mr-2" /> Reset Filters
-  </button>
-  {selectedContacts.size > 0 && (
-    <>
-      <button
-        onClick={handleDeleteSelected}
-        className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-700 transition-colors shadow-md"
-      >
-        <FaTrash className="mr-2" /> ({selectedContacts.size})
-      </button>
-      </>
-    )}
-      {selectedContacts.size == 1 && (
-        <>
-      <button
-        onClick={handleCreateOpportunity}
-        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 shadow-md flex items-center justify-center"
-        disabled={selectedContacts.size !== 1} // Disable if multiple contacts are selected
-      >
-        <FaPlus className="mr-2" /> Assign
-      </button>
-    </>
-  )}
-</div>
+            <button
+              id="reset-filters"
+              className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+              onClick={handleResetFilters}
+            >
+              <FaUndo className="mr-2" /> Reset Filters
+            </button>
+            {selectedContacts.size > 0 && (
+              <>
+                <button
+                  onClick={handleDeleteSelected}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-700 transition-colors shadow-md"
+                >
+                  <FaTrash className="mr-2" /> ({selectedContacts.size})
+                </button>
+              </>
+            )}
+            {selectedContacts.size === 1 && (
+              <>
+                <button
+                  onClick={handleCreateOpportunity}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 shadow-md flex items-center justify-center"
+                  disabled={selectedContacts.size !== 1}
+                >
+                  <FaPlus className="mr-2" /> Assign
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="bg-white shadow-lg rounded-xl overflow-hidden transform hover:shadow-xl transition-shadow">
@@ -639,8 +654,11 @@ const Contacts = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {contacts.map(contact => (
-                  <tr key={contact.id} className="hover:bg-gray-50 transition-colors" onClick={() => setSelectedContact(contact)}>
-                    
+                  <tr
+                    key={contact.id}
+                    className="hover:bg-gray-50 transition-colors"
+                    onClick={() => debouncedSetSelectedContact(contact)}
+                  >
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
@@ -710,10 +728,11 @@ const Contacts = () => {
           </div>
         </div>
 
-        {selectedContact && (
+        {selectedContact && typeof selectedContact === 'object' && (
           <div
             ref={sidebarRef}
             className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl p-4 transform transition-all duration-500 ease-in-out translate-x-0 border-l border-gray-200 overflow-y-auto z-[1000] rounded-l-lg"
+            onMouseDown={() => console.log('Sidebar rendered, sidebarRef:', sidebarRef.current)}
           >
             <div className="bg-teal-500 text-white p-4 rounded-t-lg flex justify-between items-center">
               <h2 className="text-2xl font-bold">{selectedContact.name}</h2>
@@ -827,7 +846,7 @@ const Contacts = () => {
                 onClick={handleCreateOpportunity}
                 className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 shadow-md flex items-center justify-center"
               >
-                <FaPlus className="mr-2" /> Assign to Opportunity
+                <FaPlus className="mr-2" /> Assign
               </button>
             </div>
           </div>
@@ -930,134 +949,175 @@ const Contacts = () => {
 
         {/* Contact Creation/Edit Form */}
         {showForm && (
-          <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center h-screen" style={{ zIndex: 9990 }}>
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg relative transform hover:scale-102 transition-all duration-300 max-h-[80vh] overflow-y-auto border-t-4 border-blue-500">
-              <button
-                onClick={resetForm}
-                className="absolute top-6 right-6 text-gray-600 hover:text-red-500 text-2xl font-bold transition-colors duration-200"
-              >
-                ✕
-              </button>
-              <h2 className="text-3xl font-bold mb-8 text-gray-900">
-                {editingContactId ? 'Edit Contact' : 'Create Contact'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="flex items-center border border-gray-200 rounded-xl p-5 shadow-sm space-x-5 hover:border-blue-300 transition-all duration-200">
-                  <FaUser className="text-blue-500 text-xl" />
+          <div
+            className={`fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center transition-all duration-500 ${
+              showForm ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            } z-50`}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg transform transition-all duration-300 scale-95 animate-scaleIn max-h-[80vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  {editingContactId ? (
+                    <>
+                      <FaEdit className="mr-2 text-blue-600" /> Edit Contact
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="mr-2 text-blue-600" /> New Contact
+                    </>
+                  )}
+                </h2>
+                <button
+                  onClick={resetForm}
+                  className="p-1 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Name Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
                   <input
                     type="text"
-                    placeholder="Name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    placeholder="Enter contact name"
                     required
                   />
                 </div>
-                <div className="flex items-center border border-gray-200 rounded-xl p-5 shadow-sm space-x-5 hover:border-blue-300 transition-all duration-200">
-                  <FaEnvelope className="text-blue-500 text-xl" />
+
+                {/* Email Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
                     type="email"
-                    placeholder="Email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    placeholder="Enter email address"
                     required
                   />
                 </div>
-                <div className="flex items-center border border-gray-200 rounded-xl p-5 shadow-sm space-x-5 hover:border-blue-300 transition-all duration-200">
-                  <FaPhone className="text-blue-500 text-xl" />
+
+                {/* Phone Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
                   <input
                     type="text"
-                    placeholder="Phone"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    placeholder="Enter phone number"
                   />
                 </div>
-                <Select
-                  options={ownerOptions.slice(2)}
-                  value={formData.owner ? ownerOptions.find(opt => opt.value === formData.owner.id) : null}
-                  onChange={(opt) => setFormData({ ...formData, owner: opt?.user || null })}
-                  placeholder="Select Owner"
-                  className="w-full"
-                  classNamePrefix="react-select"
-                  styles={{
-                    control: (provided) => ({
-                      ...provided,
-                      backgroundColor: 'white',
-                      borderColor: '#d1d5db',
-                      borderRadius: '0.75rem',
-                      padding: '0.5rem',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                      '&:hover': { borderColor: '#9ca3af' },
-                    }),
-                    placeholder: (provided) => ({
-                      ...provided,
-                      color: '#9ca3af',
-                    }),
-                    option: (provided, state) => ({
-                      ...provided,
-                      backgroundColor: state.isFocused ? '#f3f4f6' : 'white',
-                      color: '#374151',
-                      '&:hover': { backgroundColor: '#e5e7eb' },
-                    }),
-                  }}
-                  isClearable
-                />
-                <div className="border border-gray-200 rounded-xl p-5 shadow-sm">
+
+                {/* Status Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full bg-transparent outline-none text-gray-800"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                   >
-                    <option value="" className="text-gray-400">Select Status</option>
+                    <option value="">Select status</option>
                     <option value="Open">Open</option>
                     <option value="Closed">Closed</option>
                   </select>
                 </div>
-                <div className="flex items-center border border-gray-200 rounded-xl p-5 shadow-sm space-x-5 hover:border-blue-300 transition-all duration-200">
-                  <FaBuilding className="text-blue-500 text-xl" />
+
+                {/* Owner Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Assigned To</label>
+                  <Select
+                    options={ownerOptions.slice(2)}
+                    value={formData.owner ? ownerOptions.find(opt => opt.value === formData.owner.id) : null}
+                    onChange={(opt) => setFormData({ ...formData, owner: opt?.user || null })}
+                    placeholder="Select a user"
+                    className="w-full text-sm"
+                    classNamePrefix="react-select"
+                    styles={{
+                      control: (provided) => ({
+                        ...provided,
+                        borderColor: '#D1D5DB',
+                        borderRadius: '0.375rem',
+                        padding: '0.125rem',
+                        boxShadow: 'none',
+                        backgroundColor: '#F9FAFB',
+                        fontSize: '0.875rem',
+                        '&:hover': { borderColor: '#9CA3AF' },
+                        '&:focus': { borderColor: '#2563EB', boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.2)' },
+                      }),
+                      placeholder: (provided) => ({
+                        ...provided,
+                        color: '#9CA3AF',
+                        fontSize: '0.875rem',
+                      }),
+                      option: (provided, state) => ({
+                        ...provided,
+                        backgroundColor: state.isFocused ? '#EFF6FF' : '#F9FAFB',
+                        color: '#1F2937',
+                        fontSize: '0.875rem',
+                        '&:hover': { backgroundColor: '#DBEAFE' },
+                      }),
+                    }}
+                    isClearable
+                  />
+                </div>
+
+                {/* Company Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Company</label>
                   <input
                     type="text"
-                    placeholder="Company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
+                    placeholder="Enter company name"
                   />
                 </div>
-                <div className="flex items-start border border-gray-200 rounded-xl p-5 shadow-sm space-x-5 hover:border-blue-300 transition-all duration-200">
-                  <FaStickyNote className="text-blue-500 text-xl mt-1" />
+
+                {/* Notes Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Notes</label>
                   <textarea
-                    placeholder="Notes"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full bg-transparent outline-none resize-none text-gray-800 placeholder-gray-400"
-                    rows="5"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 h-24 text-sm"
+                    placeholder="Add any notes..."
                   />
                 </div>
-                <div className="border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <label className="block text-gray-700 mb-3">Upload Photo</label>
+
+                {/* Photo Upload Field */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Photo</label>
                   <input
                     type="file"
                     onChange={(e) => setFormData({ ...formData, photo: e.target.files[0] })}
-                    className="w-full text-gray-800"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm"
                   />
                 </div>
-                <div className="flex justify-end space-x-6 pt-8">
+
+                {/* Buttons */}
+                <div className="flex justify-end space-x-3 mt-4">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-6 py-3 bg-gray-200 rounded-xl hover:bg-gray-300 text-gray-800 font-semibold transition-colors duration-200 shadow-md"
+                    className="px-4 py-2 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-semibold transition-colors duration-200 flex items-center shadow-md"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full hover:from-blue-700 hover:to-blue-800 shadow-md transition-all duration-300 flex items-center text-sm"
                     disabled={loading}
                   >
-                    {loading && <FaSpinner className="animate-spin mr-3" />}
-                    {editingContactId ? 'Update' : 'Create'}
+                    {loading && <FaSpinner className="animate-spin mr-2" />}
+                    {editingContactId ? 'Update' : 'Add Contact'}
                   </button>
                 </div>
               </form>

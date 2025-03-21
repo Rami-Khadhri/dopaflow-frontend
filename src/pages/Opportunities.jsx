@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown , FaUndo
+  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo
 } from 'react-icons/fa';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -42,8 +42,9 @@ const Opportunities = () => {
   const [preselectedContactName, setPreselectedContactName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState('Prospection'); // State for active tab
+  const [activeTab, setActiveTab] = useState('Prospection');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [expandedOpportunityId, setExpandedOpportunityId] = useState(null); // New state for individual opportunity expansion
   const formRef = useRef(null);
 
   const stageMapping = {
@@ -54,9 +55,9 @@ const Opportunities = () => {
   };
 
   const priorityMapping = {
-    HIGH: 'Élevée',
-    MEDIUM: 'Moyenne',
-    LOW: 'Faible',
+    HIGH: 'High',
+    MEDIUM: 'Medium',
+    LOW: 'Low',
   };
 
   const priorityColors = {
@@ -354,7 +355,8 @@ const Opportunities = () => {
   };
 
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND' }).format(value);
+    const formattedNumber = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    return `${formattedNumber} TND`;
   };
 
   const bestOpportunity = useMemo(() => {
@@ -475,110 +477,93 @@ const Opportunities = () => {
 
       {/* Filters Panel */}
       {isFilterOpen && (
-  <div className="bg-white shadow-lg rounded-xl p-8 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transform hover:shadow-xl transition-shadow duration-300">
-    {/* Filter Inputs */}
-    <div className="flex flex-wrap gap-6 items-center">
-      {/* Priority Filter */}
-      <div className="w-full sm:w-auto group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
-        <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
-        <div className="relative">
-          <select
-            value={filters.priority}
-            onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-            className="w-full sm:w-32 p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4"
-          >
-            <option value="">All</option>
-            <option value="HIGH">Élevée</option>
-            <option value="MEDIUM">Moyenne</option>
-            <option value="LOW">Faible</option>
-          </select>
-          <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Priority</span>
-        </div>
-      </div>
-
-      {/* Stage Filter */}
-      <div className="w-full sm:w-auto group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
-        <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
-        <div className="relative">
-          <select
-            value={filters.stage}
-            onChange={(e) => setFilters({ ...filters, stage: e.target.value })}
-            className="w-full sm:w-32 p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4"
-          >
-            <option value="">All</option>
-            {Object.keys(stageMapping).map((key) => (
-              <option key={key} value={key}>{stageMapping[key]}</option>
-            ))}
-          </select>
-          <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Stage</span>
-        </div>
-      </div>
-
-      {/* Min Value Filter */}
-      <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4">
-        <div className="relative">
-          <input
-            type="number"
-            value={filters.minValue}
-            onChange={(e) => setFilters({ ...filters, minValue: e.target.value })}
-            placeholder="Min Value"
-            className="w-full sm:w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
-          />
-          <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Min Value (TND)</span>
-        </div>
-
-        {/* Max Value Filter */}
-        <div className="relative">
-          <input
-            type="number"
-            value={filters.maxValue}
-            onChange={(e) => setFilters({ ...filters, maxValue: e.target.value })}
-            placeholder="Max Value"
-            className="w-full sm:w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
-          />
-          <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Max Value (TND)</span>
-        </div>
-      </div>
-
-      {/* Filtered Count */}
-      {!isLoading && (
-        <div className="bg-white shadow-md rounded-xl p-2 text-gray-700 text-sm">
-          {stages.reduce((total, stage) => total + stage.opportunities.length, 0)}{' '}
-          {stages.reduce((total, stage) => total + stage.opportunities.length, 0) === 1 ? 'opportunity' : 'opportunities'} found
+        <div className="bg-white shadow-lg rounded-xl p-8 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transform hover:shadow-xl transition-shadow duration-300">
+          <div className="flex flex-wrap gap-6 items-center">
+            <div className="w-full sm:w-auto group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
+              <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
+              <div className="relative">
+                <select
+                  value={filters.priority}
+                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+                  className="w-full sm:w-32 p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4"
+                >
+                  <option value="">All</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                </select>
+                <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Priority</span>
+              </div>
+            </div>
+            <div className="w-full sm:w-auto group flex items-center space-x-2 transition-all duration-200 hover:scale-105 relative">
+              <FaFilter className="text-gray-600 group-hover:text-blue-500 transition-colors duration-200" />
+              <div className="relative">
+                <select
+                  value={filters.stage}
+                  onChange={(e) => setFilters({ ...filters, stage: e.target.value })}
+                  className="w-full sm:w-32 p-2 pl-3 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm appearance-none cursor-pointer transition-all duration-200 hover:border-blue-400 pt-4"
+                >
+                  <option value="">All</option>
+                  {Object.keys(stageMapping).map((key) => (
+                    <option key={key} value={key}>{stageMapping[key]}</option>
+                  ))}
+                </select>
+                <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Stage</span>
+              </div>
+            </div>
+            <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4">
+              <div className="relative">
+                <input
+                  type="number"
+                  value={filters.minValue}
+                  onChange={(e) => setFilters({ ...filters, minValue: e.target.value })}
+                  placeholder="Min Value"
+                  className="w-full sm:w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
+                />
+                <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Min Value (TND)</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={filters.maxValue}
+                  onChange={(e) => setFilters({ ...filters, maxValue: e.target.value })}
+                  placeholder="Max Value"
+                  className="w-full sm:w-32 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gradient-to-br from-gray-50 to-white text-gray-800 shadow-sm transition-all duration-200 hover:border-blue-400 hover:scale-105 pt-4"
+                />
+                <span className="absolute top-[-8px] left-2 bg-white px-1 text-xs text-gray-600 font-semibold">Max Value (TND)</span>
+              </div>
+            </div>
+            {!isLoading && (
+              <div className="bg-white shadow-md rounded-xl p-2 text-gray-700 text-sm">
+                {stages.reduce((total, stage) => total + stage.opportunities.length, 0)}{' '}
+                {stages.reduce((total, stage) => total + stage.opportunities.length, 0) === 1 ? 'opportunity' : 'opportunities'} found
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={() => applyFilters(allOpportunities)}
+              className="bg-blue-500 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-600 focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+            >
+              <FaFilter className="mr-2" /> Apply Filters
+            </button>
+            <button
+              id="reset-filters"
+              className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+              onClick={() => {
+                setFilters({ priority: '', stage: '', minValue: '', maxValue: '' });
+                applyFilters(allOpportunities);
+              }}
+            >
+              <FaUndo className="mr-2" /> Reset Filters
+            </button>
+          </div>
         </div>
       )}
-    </div>
-
-    {/* Buttons */}
-    <div className="flex flex-wrap gap-4">
-      {/* Apply Filters Button */}
-      <button
-        onClick={() => applyFilters(allOpportunities)}
-        className="bg-blue-500 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-600 focus:ring-4 focus:ring-blue-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
-      >
-        <FaFilter className="mr-2" /> Apply Filters
-      </button>
-
-      {/* Reset Filters Button */}
-      <button
-        id="reset-filters"
-        className="bg-blue-400 text-white px-5 py-2 rounded-lg flex items-center hover:bg-blue-900 focus:ring-4 focus:ring-red-300 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
-        onClick={() => {
-          setFilters({ priority: '', stage: '', minValue: '', maxValue: '' });
-          applyFilters(allOpportunities);
-        }}
-      >
-        <FaUndo className="mr-2" /> Reset Filters
-      </button>
-    </div>
-  </div>
-)}
 
       {/* Opportunities Display */}
       {isExpanded ? (
-        /* Tabbed Expanded Layout */
         <div className="bg-white rounded-xl shadow-lg border border-gray-100/50 p-4 sm:p-6 transition-all duration-500 animate-fadeIn">
-          {/* Tabs */}
           <div className="flex border-b border-gray-200 mb-6">
             {stages.map((stage) => (
               <button
@@ -600,8 +585,6 @@ const Opportunities = () => {
               </button>
             ))}
           </div>
-
-          {/* Tab Content */}
           {stages.map((stage) => (
             activeTab === stage.name && (
               <div key={stage.id} className="animate-fadeIn">
@@ -615,38 +598,25 @@ const Opportunities = () => {
                   <table className="min-w-full table-auto border-collapse">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Title
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Title</th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer" onClick={() => handleSort('value', stage.opportunities)}>
-                          Value
-                          {sortConfig.key === 'value' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
+                          Value {sortConfig.key === 'value' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Contact
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Contact</th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer" onClick={() => handleSort('priority', stage.opportunities)}>
-                          Priority
-                          {sortConfig.key === 'priority' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
+                          Priority {sortConfig.key === 'priority' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer" onClick={() => handleSort('progress', stage.opportunities)}>
-                          Progress
-                          {sortConfig.key === 'progress' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
+                          Progress {sortConfig.key === 'progress' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Stage
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                          Actions
-                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Stage</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {stage.opportunities.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
-                            No opportunities in this stage.
-                          </td>
+                          <td colSpan="7" className="px-4 py-6 text-center text-gray-500">No opportunities in this stage.</td>
                         </tr>
                       ) : (
                         stage.opportunities.map((opp) => (
@@ -655,29 +625,20 @@ const Opportunities = () => {
                             <td className="px-4 py-3 text-sm text-indigo-600 font-medium">{formatCurrency(opp.value)}</td>
                             <td className="px-4 py-3 text-sm text-gray-700">{opp.contact?.name || 'None'}</td>
                             <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-xs rounded-full shadow-sm ${priorityColors[opp.priority]}`}>
+                              <span className={`px-2 py-1 text-xs rounded-full shadow-sm ${priorityColors[opp.priority]}`}>
                                 {priorityMapping[opp.priority]}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center space-x-2">
                                 <div className="w-24 bg-gray-200/50 rounded-full h-2 shadow-inner">
-                                  <div
-                                    className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md"
-                                    style={{ width: `${opp.progress}%` }}
-                                  />
+                                  <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md" style={{ width: `${opp.progress}%` }} />
                                 </div>
                                 <span className="text-sm text-indigo-600">{opp.progress}%</span>
-                                <button
-                                  onClick={() => handleIncrementProgress(opp.id)}
-                                  className="p-1 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
-                                >
+                                <button onClick={() => handleIncrementProgress(opp.id)} className="p-1 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200">
                                   <FaArrowUp />
                                 </button>
-                                <button
-                                  onClick={() => handleDecrementProgress(opp.id)}
-                                  className="p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
-                                >
+                                <button onClick={() => handleDecrementProgress(opp.id)} className="p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200">
                                   <FaArrowDown />
                                 </button>
                               </div>
@@ -689,29 +650,19 @@ const Opportunities = () => {
                                 className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
                               >
                                 {Object.keys(stageMapping).map((key) => (
-                                  <option key={key} value={key} className="text-gray-700 font-medium">
-                                    {stageMapping[key]}
-                                  </option>
+                                  <option key={key} value={key} className="text-gray-700 font-medium">{stageMapping[key]}</option>
                                 ))}
                               </select>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => {
-                                    setFormData(opp);
-                                    setEditingOpportunityId(opp.id);
-                                    debouncedSetShowForm(true);
-                                    setContactSearch('');
-                                  }}
+                                  onClick={() => { setFormData(opp); setEditingOpportunityId(opp.id); debouncedSetShowForm(true); setContactSearch(''); }}
                                   className="p-2 text-indigo-600 rounded-full shadow-md hover:bg-indigo-100 transition-all duration-200"
                                 >
                                   <FaEdit />
                                 </button>
-                                <button
-                                  onClick={() => handleDelete(opp.id)}
-                                  className="p-2 text-red-600 rounded-full shadow-md hover:bg-red-100 transition-all duration-200"
-                                >
+                                <button onClick={() => handleDelete(opp.id)} className="p-2 text-red-600 rounded-full shadow-md hover:bg-red-100 transition-all duration-200">
                                   <FaTrash />
                                 </button>
                               </div>
@@ -727,99 +678,78 @@ const Opportunities = () => {
           ))}
         </div>
       ) : (
-        /* Default Kanban Board Layout with Fixed Priority and Title */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-500 animate-fadeIn">
-          {stages.map((stage) => (
-            <div
-              key={stage.id}
-              className={`${stage.color} p-4 rounded-xl shadow-lg border border-gray-100/50 min-h-[200px] transition-all duration-300 hover:shadow-xl flex flex-col`}
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800 tracking-tight">{stage.name}</h2>
-                <span className="bg-gray-800 text-white text-xs font-medium px-2 py-1 rounded-full shadow-inner">
-                  {stage.opportunities.length}
-                </span>
-              </div>
-              <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-gray-100 flex-1">
-                {stage.opportunities.map((opp) => (
-                  <div
-                    key={opp.id}
-                    className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg w-full"
-                  >
-                    {/* Priority Badge Fixed in Top-Right Corner */}
-                    <span className={`absolute top-3 right-3 px-2 py-1 text-xs font-semibold rounded-full shadow-sm ${priorityColors[opp.priority]}`}>
-                      {priorityMapping[opp.priority]}
-                    </span>
-                    <div className="pr-16">
-                      <h3 className="text-md font-semibold text-gray-800 tracking-tight break-words mb-2">{opp.title}</h3>
-                      <p className="text-sm text-gray-600 font-medium">{formatCurrency(opp.value)}</p>
-                      <p className="text-xs text-gray-500 mt-1 font-medium">Contact: {opp.contact?.name || 'None'}</p>
-                    </div>
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-xs text-gray-600 font-medium">
-                        <span>Progress</span>
-                        <span>{opp.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200/50 rounded-full h-2 mt-1 shadow-inner">
-                        <div
-                          className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md"
-                          style={{ width: `${opp.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-between mt-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleIncrementProgress(opp.id)}
-                          className="p-1 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300/50"
-                        >
-                          <FaArrowUp />
-                        </button>
-                        <button
-                          onClick={() => handleDecrementProgress(opp.id)}
-                          className="p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-                        >
-                          <FaArrowDown />
-                        </button>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setFormData(opp);
-                            setEditingOpportunityId(opp.id);
-                            debouncedSetShowForm(true);
-                            setContactSearch('');
-                          }}
-                          className="p-2 text-indigo-600 rounded-full shadow-md hover:bg-indigo-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(opp.id)}
-                          className="p-2 text-red-600 rounded-full shadow-md hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                    <select
-                      value={opp.stage}
-                      onChange={(e) => handleChangeStage(opp.id, e.target.value)}
-                      className="mt-2 w-full p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-500 animate-fadeIn">
+            {stages.map((stage) => (
+              <div
+                key={stage.id}
+                className={`${stage.color} p-4 rounded-xl shadow-lg border border-gray-100/50 min-h-[200px] transition-all duration-300 hover:shadow-xl flex flex-col`}
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800 tracking-tight">{stage.name}</h2>
+                  <span className="bg-gray-800 text-white text-xs font-medium px-2 py-1 rounded-full shadow-inner">
+                    {stage.opportunities.length}
+                  </span>
+                </div>
+                <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-gray-100 flex-1">
+                  {stage.opportunities.map((opp) => (
+                    <div
+                      key={opp.id}
+                      className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg w-full overflow-hidden"
                     >
-                      {Object.keys(stageMapping).map((key) => (
-                        <option key={key} value={key} className="text-gray-700 font-medium">
-                          {stageMapping[key]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                      {/* Title and Expand Button (together on top line) */}
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-md font-semibold text-gray-800 tracking-tight truncate w-[80%]">
+                          {opp.title}
+                        </h3>
+                        <button
+                          onClick={() => setExpandedOpportunityId(opp.id)}
+                          className="p-1 bg-gray-200 rounded-full hover:bg-gray-300 transition-all duration-200 flex-shrink-0"
+                        >
+                          <FaExpand size={16} />
+                        </button>
+                      </div>
+        
+                      {/* Contact (own line) */}
+                      <p className="text-sm text-gray-600 font-medium truncate mb-2">
+                        Contact: {opp.contact?.name || 'None'}
+                      </p>
+        
+                      {/* Priority (own line) */}
+                      <div className="flex items-center mb-2">
+                        <span className="text-sm text-gray-600 font-medium mr-2">Priority:</span>
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full shadow-sm ${priorityColors[opp.priority]}`}
+                        >
+                          {priorityMapping[opp.priority]}
+                        </span>
+                      </div>
+        
+                      {/* Progress (own line) */}
+                      <div className="flex items-center mb-2">
+                        <span className="text-sm text-gray-600 font-medium mr-2">Progress:</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-20 bg-gray-200/50 rounded-full h-2 shadow-inner flex-shrink-0">
+                            <div
+                              className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md"
+                              style={{ width: `${opp.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-indigo-600 whitespace-nowrap">{opp.progress}%</span>
+                        </div>
+                      </div>
+        
+                      {/* Creation Date (own line) */}
+                      <p className="text-xs text-gray-500 font-medium truncate">
+                        Created: {new Date(opp.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
       {/* Assign Popup */}
       {showAssignPopup && preselectedContactId && (
@@ -827,26 +757,16 @@ const Opportunities = () => {
           <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100/50 animate-fadeIn">
             <h2 className="text-2xl font-bold text-gray-800 tracking-tight mb-4">Assign Contact to Opportunity</h2>
             <p className="text-gray-600 font-medium mb-6">
-              Do you want to create a new opportunity or assign to an existing one for{' '}
-              <strong className="text-gray-800">{preselectedContactName}</strong>?
+              Do you want to create a new opportunity or assign to an existing one for <strong className="text-gray-800">{preselectedContactName}</strong>?
             </p>
             <div className="flex justify-end space-x-4">
-              <button
-                onClick={handleAssignToNewOpportunity}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
-              >
+              <button onClick={handleAssignToNewOpportunity} className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50">
                 New Opportunity
               </button>
-              <button
-                onClick={handleAssignToExistingOpportunity}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300/50"
-              >
+              <button onClick={handleAssignToExistingOpportunity} className="px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300/50">
                 Existing Opportunity
               </button>
-              <button
-                onClick={handleCancelAssignPopup}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50"
-              >
+              <button onClick={handleCancelAssignPopup} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50">
                 Cancel
               </button>
             </div>
@@ -860,10 +780,7 @@ const Opportunities = () => {
           <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Assign {preselectedContactName} to Existing Opportunity</h2>
-              <button
-                onClick={handleBackToAssignPopup}
-                className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-              >
+              <button onClick={handleBackToAssignPopup} className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50">
                 <FaTimes size={24} />
               </button>
             </div>
@@ -872,11 +789,7 @@ const Opportunities = () => {
                 <p className="text-gray-600 font-medium text-center py-4">No existing opportunities without a contact available.</p>
               ) : (
                 allOpportunities.filter((opp) => !opp.contact).map((opp) => (
-                  <div
-                    key={opp.id}
-                    className="p-4 bg-gray-50/80 rounded-lg shadow-md border border-gray-200/50 hover:bg-gray-100 cursor-pointer transition-all duration-200"
-                    onClick={() => handleSelectExistingOpportunity(opp.id)}
-                  >
+                  <div key={opp.id} className="p-4 bg-gray-50/80 rounded-lg shadow-md border border-gray-200/50 hover:bg-gray-100 cursor-pointer transition-all duration-200" onClick={() => handleSelectExistingOpportunity(opp.id)}>
                     <h3 className="text-md font-semibold text-gray-800 tracking-tight break-words">{opp.title}</h3>
                     <p className="text-sm text-gray-600 font-medium mt-1">{formatCurrency(opp.value)}</p>
                     <p className="text-xs text-gray-500 font-medium mt-1">Stage: {stageMapping[opp.stage]}</p>
@@ -892,18 +805,10 @@ const Opportunities = () => {
       {/* Opportunity Form */}
       {showForm && formData && (
         <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div
-            ref={formRef}
-            className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn"
-          >
+          <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">
-                {editingOpportunityId ? 'Edit Opportunity' : 'Add New Opportunity'}
-              </h2>
-              <button
-                onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => debouncedSetShowForm(false)}
-                className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-              >
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">{editingOpportunityId ? 'Edit Opportunity' : 'Add New Opportunity'}</h2>
+              <button onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => debouncedSetShowForm(false)} className="p-2 text-gray-500 rounded-full shadow-md hover:text-red-600 hover:bg-red-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50">
                 <FaTimes size={24} />
               </button>
             </div>
@@ -938,9 +843,7 @@ const Opportunities = () => {
                 >
                   <option value="">No Contact</option>
                   {filteredContacts.map((contact) => (
-                    <option key={contact.id} value={contact.id} className="text-gray-700 font-medium">
-                      {contact.name} ({contact.email})
-                    </option>
+                    <option key={contact.id} value={contact.id} className="text-gray-700 font-medium">{contact.name} ({contact.email})</option>
                   ))}
                 </select>
               </div>
@@ -963,9 +866,9 @@ const Opportunities = () => {
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                   className="mt-1 w-full p-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                 >
-                  <option value="HIGH" className="text-red-600 font-medium">Élevée</option>
-                  <option value="MEDIUM" className="text-yellow-600 font-medium">Moyenne</option>
-                  <option value="LOW" className="text-green-600 font-medium">Faible</option>
+                  <option value="HIGH" className="text-red-600 font-medium">High</option>
+                  <option value="MEDIUM" className="text-yellow-600 font-medium">Medium</option>
+                  <option value="LOW" className="text-green-600 font-medium">Low</option>
                 </select>
               </div>
               <div>
@@ -979,18 +882,10 @@ const Opportunities = () => {
                     min="0"
                     max="100"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })}
-                    className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300/50"
-                  >
+                  <button type="button" onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })} className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-300/50">
                     <FaArrowUp />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })}
-                    className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-                  >
+                  <button type="button" onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })} className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50">
                     <FaArrowDown />
                   </button>
                 </div>
@@ -1003,24 +898,15 @@ const Opportunities = () => {
                   className="mt-1 w-full p-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                 >
                   {Object.keys(stageMapping).map((key) => (
-                    <option key={key} value={key} className="text-gray-700 font-medium">
-                      {stageMapping[key]}
-                    </option>
+                    <option key={key} value={key} className="text-gray-700 font-medium">{stageMapping[key]}</option>
                   ))}
                 </select>
               </div>
               <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => debouncedSetShowForm(false)}
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50"
-                >
+                <button type="button" onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => debouncedSetShowForm(false)} className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50">
                   Close
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
-                >
+                <button type="submit" className="px-4 sm:px-6 py-2 sm:py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50">
                   {editingOpportunityId ? 'Update' : 'Create'}
                 </button>
               </div>
@@ -1028,6 +914,127 @@ const Opportunities = () => {
           </div>
         </div>
       )}
+
+      {/* Expanded Opportunity Details */}
+      {expandedOpportunityId && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setExpandedOpportunityId(null)}>
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <OpportunityDetails
+              opportunity={allOpportunities.find(opp => opp.id === expandedOpportunityId)}
+              onClose={() => setExpandedOpportunityId(null)}
+              onEdit={() => {
+                const opp = allOpportunities.find(opp => opp.id === expandedOpportunityId);
+                setFormData(opp);
+                setEditingOpportunityId(opp.id);
+                debouncedSetShowForm(true);
+                setExpandedOpportunityId(null);
+              }}
+              onDelete={() => {
+                handleDelete(expandedOpportunityId);
+                setExpandedOpportunityId(null);
+              }}
+              onChangeStage={(newStage) => handleChangeStage(expandedOpportunityId, newStage)}
+              onIncrementProgress={() => handleIncrementProgress(expandedOpportunityId)}
+              onDecrementProgress={() => handleDecrementProgress(expandedOpportunityId)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Opportunity Details Component
+const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeStage, onIncrementProgress, onDecrementProgress }) => {
+  if (!opportunity) return null;
+
+  const formatCurrency = (value) => {
+    const formattedNumber = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    return `${formattedNumber} TND`;
+  };
+
+  const priorityColors = {
+    HIGH: 'bg-red-500 text-white',
+    MEDIUM: 'bg-yellow-500 text-white',
+    LOW: 'bg-green-500 text-white',
+  };
+
+  const priorityMapping = {
+    HIGH: 'High',
+    MEDIUM: 'Medium',
+    LOW: 'Low',
+  };
+
+  const stageMapping = {
+    PROSPECTION: 'Prospection',
+    QUALIFICATION: 'Qualification',
+    NEGOTIATION: 'Négociation',
+    CLOSED: 'Clôturé',
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-800">{opportunity.title}</h2>
+        <button onClick={onClose} className="text-gray-500 hover:text-red-600 transition-all duration-200">
+          <FaTimes size={24} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-sm text-gray-600">Value</p>
+          <p className="text-lg font-semibold text-indigo-600">{formatCurrency(opportunity.value)}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Priority</p>
+          <span className={`px-2 py-1 text-xs rounded-full ${priorityColors[opportunity.priority]}`}>
+            {priorityMapping[opportunity.priority]}
+          </span>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Contact</p>
+          <p className="text-lg font-medium text-gray-800">{opportunity.contact?.name || 'None'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Stage</p>
+          <select
+            value={opportunity.stage}
+            onChange={(e) => onChangeStage(e.target.value)}
+            className="p-2 bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+          >
+            {Object.keys(stageMapping).map((key) => (
+              <option key={key} value={key}>{stageMapping[key]}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Progress</p>
+          <div className="flex items-center space-x-2">
+            <div className="w-32 bg-gray-200 rounded-full h-2">
+              <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${opportunity.progress}%` }} />
+            </div>
+            <span className="text-sm text-indigo-600">{opportunity.progress}%</span>
+            <button onClick={onIncrementProgress} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all duration-200">
+              <FaArrowUp />
+            </button>
+            <button onClick={onDecrementProgress} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all duration-200">
+              <FaArrowDown />
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Created At</p>
+          <p className="text-lg font-medium text-gray-800">{new Date(opportunity.createdAt).toLocaleDateString()}</p>
+        </div>
+      </div>
+      <div className="flex justify-end space-x-4">
+        <button onClick={onEdit} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 flex items-center">
+          <FaEdit className="mr-2" /> Edit
+        </button>
+        <button onClick={onDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 flex items-center">
+          <FaTrash className="mr-2" /> Delete
+        </button>
+      </div>
     </div>
   );
 };

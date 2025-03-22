@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { FaSearch, FaCog, FaKey, FaShieldAlt, FaBell , FaChevronRight} from 'react-icons/fa';
+import { FaSearch, FaCog, FaKey, FaShieldAlt, FaBell, FaChevronRight } from 'react-icons/fa';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Contacts from './pages/Contacts';
@@ -20,8 +20,8 @@ import aiIcon from './images/ai-icon.png';
 import axios from 'axios';
 import Page404 from './pages/Page404';
 import { AIChat } from './AIService';
-import SidebarIcon from './images/sidebar.png'
-
+import SidebarIcon from './images/sidebar.png';
+import Companies from './pages/Companies';
 // Utility Components
 const RefreshOnMount = ({ fetchData, hasError }) => {
   const [hasFetched, setHasFetched] = useState(false);
@@ -83,6 +83,7 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Contacts', path: '/contacts' },
     { label: 'Tasks', path: '/tasks' },
+    { label: 'Companies', path: '/Companies' },
     { label: 'Reports', path: '/reports' },
     { label: 'Opportunities', path: '/opportunities' },
     { label: 'Support', path: '/tickets' },
@@ -177,6 +178,65 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
     </div>
   );
 };
+
+// Notification Dropdown Component
+const NotificationType = {
+  PASSWORD_CHANGE: "PASSWORD_CHANGE",
+  TWO_FA_ENABLED: "TWO_FA_ENABLED",
+  TWO_FA_DISABLED: "TWO_FA_DISABLED",
+  USER_CREATED: "USER_CREATED",
+  USER_DELETED: "USER_DELETED",
+  CONTACT_CREATED: "CONTACT_CREATED",
+  TASK_ASSIGNED: "TASK_ASSIGNED",
+  MESSAGE_RECEIVED: "MESSAGE_RECEIVED",
+  TICKET_OPENED: "TICKET_OPENED",
+  TICKET_CLOSED: "TICKET_CLOSED",
+  TICKET_STATUS_CHANGED: "TICKET_STATUS_CHANGED",
+};
+
+const getNotificationDetails = (type) => {
+  switch (type) {
+    case NotificationType.PASSWORD_CHANGE:
+      return { icon: <FaKey className="w-5 h-5 text-blue-500" /> };
+    case NotificationType.TWO_FA_ENABLED:
+      return { icon: <FaShieldAlt className="w-5 h-5 text-green-500" /> };
+    case NotificationType.TWO_FA_DISABLED:
+      return { icon: <FaShieldAlt className="w-5 h-5 text-red-500" /> };
+    case NotificationType.USER_CREATED:
+      return { icon: <FaBell className="w-5 h-5 text-purple-500" /> };
+    case NotificationType.USER_DELETED:
+      return { icon: <FaBell className="w-5 h-5 text-red-500" /> };
+    case NotificationType.CONTACT_CREATED:
+      return { icon: <FaBell className="w-5 h-5 text-blue-500" /> };
+    case NotificationType.TASK_ASSIGNED:
+      return { icon: <FaBell className="w-5 h-5 text-yellow-500" /> };
+    case NotificationType.MESSAGE_RECEIVED:
+      return { icon: <FaBell className="w-5 h-5 text-teal-500" /> };
+    case NotificationType.TICKET_OPENED:
+      return { icon: <FaBell className="w-5 h-5 text-orange-500" /> };
+    case NotificationType.TICKET_CLOSED:
+      return { icon: <FaBell className="w-5 h-5 text-green-500" /> };
+    case NotificationType.TICKET_STATUS_CHANGED:
+      return { icon: <FaBell className="w-5 h-5 text-blue-500" /> };
+    default:
+      return { icon: <FaBell className="w-5 h-5 text-gray-500" /> };
+  }
+};
+
+const getTimeAgo = timestamp => {
+  const now = new Date();
+  const then = new Date(timestamp);
+  const diffMs = now - then;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffSeconds < 60) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+};
+
 const NotificationDropdown = () => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -192,8 +252,9 @@ const NotificationDropdown = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const fetchedNotifications = response.data.notifications || [];
-      setNotifications(fetchedNotifications.slice(0, 20));
-      setUnreadCount(fetchedNotifications.filter(n => !n.isRead).length);
+      const fetchedUnreadCount = response.data.unreadCount || 0;
+      setNotifications(fetchedNotifications);
+      setUnreadCount(fetchedUnreadCount);
     } catch (error) {
       console.error('Failed to fetch notifications:', error.response?.data || error.message);
     }
@@ -230,7 +291,7 @@ const NotificationDropdown = () => {
   const handleRedirect = (link) => {
     if (!link) return;
 
-    const [path, param1, param2] = link.split('/').filter(Boolean); // e.g., "/tasks/1" -> ["tasks", "1"]
+    const [path, param1, param2] = link.split('/').filter(Boolean);
     if (path === 'profile') {
       const tabMapping = {
         '2fa': 'twoFactor',
@@ -241,9 +302,9 @@ const NotificationDropdown = () => {
       const mappedTab = tabMapping[param1] || 'profile';
       navigate('/profile', { state: { highlight: mappedTab, section: mappedTab } });
     } else if (path === 'tasks' && param1) {
-      navigate('/tasks', { state: { highlightTaskId: param1 } }); // Pass task ID to highlight
+      navigate('/tasks', { state: { highlightTaskId: param1 } });
     } else {
-      navigate(link); // Direct navigation for other links
+      navigate(link);
     }
     setIsOpen(false);
   };
@@ -276,63 +337,86 @@ const NotificationDropdown = () => {
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-20 overflow-hidden"
+          className="absolute w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden"
           style={{ top: '80px', right: '100px' }}
         >
-          <div className="px-4 py-2 bg-teal-50 text-teal-800 font-semibold text-sm flex items-center justify-between">
-            <span>Notifications</span>
-            {unreadCount > 0 && <span>({unreadCount} unread)</span>}
+          {/* Header */}
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+            {unreadCount > 0 && (
+              <span className="text-sm text-gray-500">
+                {unreadCount} unread
+              </span>
+            )}
           </div>
-          <div className="max-h-64 overflow-y-auto">
-  {notifications.length > 0 ? (
-    notifications.map(notification => (
-      <div
-        key={notification.id}
-        onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
-        className="flex items-center px-4 py-3 hover:bg-teal-50 cursor-pointer group transition-colors duration-150"
-      >
-        <div className="flex-shrink-0">
-          <span
-            className={`w-2 h-2 rounded-full ${notification.isRead ? 'bg-gray-300' : 'bg-teal-500 animate-pulse'}`}
-          />
-        </div>
-        <div className="ml-3 flex-1">
-          <p className={`text-sm ${notification.isRead ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
-            {notification.message}
-          </p>
-          <p className="text-xs text-gray-500">{getTimeAgo(notification.timestamp)}</p>
-        </div>
-        {notification.link && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRedirect(notification.link);
-            }}
-            className="flex-shrink-0 ml-2 p-1 bg-teal-500 text-white rounded-full hover:bg-teal-600 transition-all duration-150 opacity-0 group-hover:opacity-100"
-            title="Go to page"
-          >
-            <span className="text-2xl text-white hover:text-gray-400 transition duration-200 ease-in-out">
-              <FaChevronRight />
-            </span>
-          </button>
-        )}
-      </div>
-    ))
-  ) : (
-    <div className="px-4 py-4 text-center text-gray-500 text-sm">
-      <FaBell className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-      No notifications
-    </div>
-  )}
-</div>
 
+          {/* Notifications List */}
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length > 0 ? (
+              notifications.map(notification => {
+                const { icon } = getNotificationDetails(notification.type);
+                return (
+                  <div
+                    key={notification.id}
+                    onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
+                    className="flex items-center px-5 py-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150"
+                  >
+                    {/* Icon */}
+                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                      {icon}
+                    </div>
+
+                    {/* Notification Content */}
+                    <div className="ml-3 flex-1">
+                      <p className={`text-sm ${notification.isRead ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-gray-400">{getTimeAgo(notification.timestamp)}</p>
+                    </div>
+
+                    {/* Action Button (if link exists) */}
+                    {notification.link && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRedirect(notification.link);
+                        }}
+                        className="flex-shrink-0 ml-2 p-1 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 transition-all duration-150"
+                        title="Go to page"
+                      >
+                        <FaChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="px-5 py-6 text-center text-gray-500">
+                <FaBell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No notifications yet</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
           {notifications.length > 0 && (
-            <button
-              onClick={markAllAsRead}
-              className="w-full py-2 text-sm text-teal-600 bg-teal-50 hover:bg-teal-100 font-medium transition-colors duration-150"
-            >
-              Mark All as Read
-            </button>
+            <div className="border-t border-gray-200">
+              <button
+                onClick={markAllAsRead}
+                className="w-full py-3 text-sm text-blue-600 hover:bg-blue-50 font-medium transition-colors duration-150"
+              >
+                Mark All as Read
+              </button>
+              <button
+                onClick={() => {
+                  navigate('/notifications');
+                  setIsOpen(false);
+                }}
+                className="w-full py-3 text-sm text-gray-600 hover:bg-gray-50 font-medium transition-colors duration-150 border-t border-gray-200"
+              >
+                View All
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -340,21 +424,7 @@ const NotificationDropdown = () => {
   );
 };
 
-const getTimeAgo = timestamp => {
-  const now = new Date();
-  const then = new Date(timestamp);
-  const diffMs = now - then;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffSeconds < 60) return 'just now';
-  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes > 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
-  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-};
-
-const ProtectedRoute = ({ children, allowedRoles = ['SuperAdmin', 'Admin'], fetchUser }) => {
+const ProtectedRoute = ({ children, allowedRoles = ['SuperAdmin', 'Admin'], fetchUser, onlineUsers }) => {
   const token = localStorage.getItem('token');
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -365,7 +435,6 @@ const ProtectedRoute = ({ children, allowedRoles = ['SuperAdmin', 'Admin'], fetc
       return false;
     }
     try {
-
       const response = await axios.get('http://localhost:8080/api/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -402,7 +471,7 @@ const ProtectedRoute = ({ children, allowedRoles = ['SuperAdmin', 'Admin'], fetc
     <>
       <RefreshOnMount fetchData={fetchUserData} hasError={!!error} />
       {error && <div className="text-red-600 text-center p-4">{error}</div>}
-      {children}
+      {React.cloneElement(children, { onlineUsers })}
     </>
   );
 };
@@ -416,6 +485,7 @@ function App() {
   const [showAIButton, setShowAIButton] = useState(() => JSON.parse(localStorage.getItem('showAIButton') || 'true'));
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [initialChatMessage, setInitialChatMessage] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const dropdownRef = useRef(null);
 
   const fetchUser = async () => {
@@ -444,19 +514,81 @@ function App() {
     }
   };
 
+  // WebSocket setup function
+  const setupWebSocket = (userId) => {
+    const ws = new WebSocket(`ws://localhost:8080/ws/user-status?userId=${encodeURIComponent(userId)}`);
+
+    ws.onopen = () => console.log(`WebSocket connected for userId: ${userId}`);
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('WebSocket message received:', data);
+
+      setOnlineUsers(prev => {
+        const userExists = prev.some(u => u.id === data.userId);
+        if (userExists) {
+          return prev.map(u =>
+            u.id === data.userId
+              ? { ...u, isOnline: data.activity === 'online', lastActive: data.lastActive !== null ? Number(data.lastActive) : null }
+              : u
+          );
+        } else {
+          return [
+            ...prev,
+            {
+              id: data.userId,
+              isOnline: data.activity === 'online',
+              lastActive: data.lastActive !== null ? Number(data.lastActive) : null,
+            },
+          ];
+        }
+      });
+    };
+
+    ws.onclose = () => {
+      console.warn(`WebSocket disconnected for userId: ${userId}, reconnecting...`);
+      setTimeout(() => setupWebSocket(userId), 5000); // Reconnect after 5 seconds
+    };
+
+    ws.onerror = (error) => console.error('WebSocket error:', error);
+
+    return ws;
+  };
+
+  // WebSocket initialization
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const token = localStorage.getItem('token');
+    let userId = '1'; // Default fallback ID
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload.sub;
+      } catch (e) {
+        console.error('Token parsing error:', e);
+      }
+    }
+
+    const ws = setupWebSocket(userId);
+
+    return () => {
+      ws.close();
+    };
+  }, [isLoggedIn]);
+
   useEffect(() => {
     if (isLoggedIn) {
       fetchUser();
-    } else {
     }
   }, [isLoggedIn]);
 
   const handleLogout = () => {
-
     localStorage.removeItem('token');
     setIsLoggedIn(false);
     setUser(null);
     setError(null);
+    setOnlineUsers([]);
     window.location.href = '/login';
   };
 
@@ -477,6 +609,7 @@ function App() {
         ...(user.role === 'User' ? [] : [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard' }]),
         ...(user.role === 'User' ? [] : [{ to: '/users', label: 'Users', icon: 'people' }]),
         { to: '/contacts', label: 'Contacts', icon: 'contacts' },
+        { to: '/companies', label: 'Companies', icon: 'apartment' },
         { to: '/tasks', label: 'Tasks', icon: 'task' },
         { to: '/reports', label: 'Reports', icon: 'analytics' },
         { to: '/opportunities', label: 'Opportunities', icon: 'trending_up' },
@@ -529,20 +662,18 @@ function App() {
               <div className="flex items-left justify-between mb-4">
                 <img src={isSidebarOpen ? logo : logo2} alt="Logo" className={`object-contain rounded-lg ${isSidebarOpen ? 'w-48 h-16' : 'w-14 h-14'}`} style={{ marginTop: '5px' }} />
                 <button
-  onClick={toggleSidebar}
-  className="fixed flex items-center justify-center w-12 h-12 bg-white  border-gray-200 border-t border-r border-b hover:bg-gray-100 transition-all duration-200 z-50"
-  style={{
-    top: '21px',
-    left: isSidebarOpen ? '256px' : '80px', // Shifted slightly to the left
-    borderTopRightRadius: '12px', // Rounded top-right
-    borderBottomRightRadius: '12px', // Rounded bottom-right
-  }}
->
-
-              <span className="material-icons-round text-gray-600 text-base">
-               {isSidebarOpen ? 'close' : <img src={SidebarIcon} alt="menu icon" className="w-7 h-7" />}
-                </span>
-
+                  onClick={toggleSidebar}
+                  className="fixed flex items-center justify-center w-12 h-12 bg-white border-gray-200 border-t border-r border-b hover:bg-gray-100 transition-all duration-200 z-50"
+                  style={{
+                    top: '21px',
+                    left: isSidebarOpen ? '256px' : '80px',
+                    borderTopRightRadius: '12px',
+                    borderBottomRightRadius: '12px',
+                  }}
+                >
+                  <span className="material-icons-round text-gray-600 text-base">
+                    {isSidebarOpen ? 'close' : <img src={SidebarIcon} alt="menu icon" className="w-7 h-7" />}
+                  </span>
                 </button>
               </div>
               <nav className="flex-1 space-y-2 mt-2 overflow-y-auto">
@@ -630,15 +761,17 @@ function App() {
               </div>
               <div className="max-w-7xl mx-auto">
                 <Routes>
-                  <Route path="/profile" element={<ProtectedRoute fetchUser={fetchUser}><Profile setUser={setUser} /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['SuperAdmin', 'Admin']} fetchUser={fetchUser}><Dashboard /></ProtectedRoute>} />
-                  <Route path="/" element={<ProtectedRoute fetchUser={fetchUser}><Profile setUser={setUser} /></ProtectedRoute>} />
-                  <Route path="/users" element={<ProtectedRoute allowedRoles={['SuperAdmin', 'Admin']} fetchUser={fetchUser}><Users /></ProtectedRoute>} />
-                  <Route path="/contacts" element={<ProtectedRoute fetchUser={fetchUser}><Contacts /></ProtectedRoute>} />
-                  <Route path="/tasks" element={<ProtectedRoute fetchUser={fetchUser}><Tasks /></ProtectedRoute>} />
-                  <Route path="/reports" element={<ProtectedRoute fetchUser={fetchUser}><Reports /></ProtectedRoute>} />
-                  <Route path="/opportunities" element={<ProtectedRoute fetchUser={fetchUser}><Opportunities /></ProtectedRoute>} />
-                  <Route path="/tickets" element={<ProtectedRoute fetchUser={fetchUser}><Ticket /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Profile setUser={setUser} /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['SuperAdmin', 'Admin']} fetchUser={fetchUser} onlineUsers={onlineUsers}><Dashboard /></ProtectedRoute>} />
+                  <Route path="/" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Profile setUser={setUser} /></ProtectedRoute>} />
+                  <Route path="/users" element={<ProtectedRoute allowedRoles={['SuperAdmin', 'Admin']} fetchUser={fetchUser} onlineUsers={onlineUsers}><Users /></ProtectedRoute>} />
+                  <Route path="/contacts" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Contacts /></ProtectedRoute>} />
+                  <Route path="/tasks" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Tasks /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Reports /></ProtectedRoute>} />
+                  <Route path="/opportunities" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Opportunities /></ProtectedRoute>} />
+                  <Route path="/tickets" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Ticket /></ProtectedRoute>} />
+                  <Route path="/tickets/:ticketId" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Ticket /></ProtectedRoute>} />
+                  <Route path="/companies" element={<ProtectedRoute fetchUser={fetchUser}><Companies /></ProtectedRoute>} />
                   <Route path="/login" element={<Navigate to="/profile" />} />
                   <Route path="/signup" element={<Navigate to="/profile" />} />
                   <Route path="/forgot-password" element={<Navigate to="/profile" />} />

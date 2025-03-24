@@ -1232,142 +1232,174 @@ const Contacts = () => {
         )}
 
         {/* Import Modal */}
-        {showImportModal && (
-          <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center h-screen" style={{ zIndex: 9990 }}>
-            <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-3xl max-h-[70vh] overflow-y-auto relative transform hover:scale-102 transition-all duration-300 border-t-4 border-purple-500">
+        // Replace the existing showImportModal section in your Contacts component with this:
+
+{showImportModal && (
+  <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center z-[9990] p-4">
+    <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto transform transition-all duration-300 border-t-4 border-purple-500">
+      <div className="relative p-6">
+        <button
+          onClick={() => {
+            setShowImportModal(false);
+            setPreviewData(null);
+            setSelectedColumns([]);
+            setImportProgress(0);
+            setImportFile(null);
+            setError(null);
+          }}
+          className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold transition-colors duration-200"
+        >
+          ✕
+        </button>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Import Contacts</h2>
+
+        {/* File Type and Upload */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">File Type</label>
+            <select
+              value={importType}
+              onChange={(e) => setImportType(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-800 shadow-sm transition-all duration-200 hover:border-purple-400"
+            >
+              <option value="csv">CSV</option>
+              <option value="excel">Excel (.xlsx)</option>
+            </select>
+          </div>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Upload File (Max 100MB)</label>
+            <input
+              type="file"
+              accept={importType === 'csv' ? '.csv' : '.xlsx'}
+              onChange={(e) => setImportFile(e.target.files[0])}
+              className="w-full text-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition-all duration-200"
+            />
+            <p className="text-xs text-gray-500 mt-2">Expected Headers: Name, Email, Phone, Status, Company, Notes, Owner</p>
+          </div>
+        </div>
+
+        {/* Update Existing Checkbox and Preview Button */}
+        <div className="flex items-center justify-between mb-6">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="updateExisting"
+              checked={updateExisting}
+              onChange={(e) => setUpdateExisting(e.target.checked)}
+              className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+            />
+            <span className="text-sm text-gray-700">Update existing contacts</span>
+          </label>
+          <button
+            onClick={handlePreview}
+            className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-semibold transition-colors duration-200 flex items-center shadow-md disabled:bg-gray-400"
+            disabled={loading || !importFile}
+          >
+            {loading && !previewData && <FaSpinner className="animate-spin mr-2" />}
+            Upload for Preview
+          </button>
+        </div>
+
+        {/* Preview Section */}
+        {previewData && previewData.headers && previewData.headers.length > 0 && previewData.contacts && previewData.contacts.length > 0 ? (
+          <div className="space-y-6">
+            {/* Unmapped Fields Warning */}
+            {previewData.unmappedFields && previewData.unmappedFields.length > 0 && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                <p className="text-sm text-yellow-700">
+                  Unmapped columns (added to notes): <span className="font-medium">{previewData.unmappedFields.join(', ')}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Column Selection */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Columns to Import</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                {previewData.headers.map(header => (
+                  <label key={header} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedColumns.includes(header.toLowerCase())}
+                      onChange={(e) => {
+                        setSelectedColumns(prev =>
+                          e.target.checked ? [...prev, header.toLowerCase()] : prev.filter(col => col !== header.toLowerCase())
+                        );
+                      }}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700 capitalize">{header}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Contacts Preview */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Contacts to be Imported ({previewData.contacts.length})</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-h-64 overflow-y-auto">
+                <div className="space-y-2">
+                  {previewData.contacts.map((contact, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      <div className="text-sm text-gray-800">
+                        <span className="font-medium">{contact.name || 'Unnamed'}</span>
+                        <span className="text-gray-500 ml-2">
+                          (Email: {contact.email || 'N/A'}, Phone: {contact.phone || 'N/A'})
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Import Progress */}
+            {importProgress > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Import Progress</h3>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${importProgress}%` }}></div>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">{Math.round(importProgress)}%</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-4">
               <button
                 onClick={() => {
-                  setShowImportModal(false);
                   setPreviewData(null);
                   setSelectedColumns([]);
                   setImportProgress(0);
-                  setImportFile(null);
-                  setError(null);
                 }}
-                className="absolute top-4 right-4 text-gray-600 hover:text-red-500 text-2xl font-bold transition-colors duration-200"
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 font-semibold transition-colors duration-200 shadow-md"
               >
-                ✕
+                Cancel Preview
               </button>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">Import Contacts</h2>
-              <div className="space-y-4">
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  <label className="block text-gray-700 font-semibold mb-2">File Type</label>
-                  <select
-                    value={importType}
-                    onChange={(e) => setImportType(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-800 shadow-sm transition-all duration-200 hover:border-purple-400"
-                  >
-                    <option value="csv">CSV</option>
-                    <option value="excel">Excel (.xlsx)</option>
-                  </select>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  <label className="block text-gray-700 font-semibold mb-2">Upload File (Max 100MB)</label>
-                  <input
-                    type="file"
-                    accept={importType === 'csv' ? '.csv' : '.xlsx'}
-                    onChange={(e) => setImportFile(e.target.files[0])}
-                    className="w-full text-gray-800 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition-all duration-200"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">Expected Headers: Name, Email, Phone, Status, Company, Notes, Owner</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="updateExisting"
-                    checked={updateExisting}
-                    onChange={(e) => setUpdateExisting(e.target.checked)}
-                    className="custom-checkbox"
-                  />
-                  <label htmlFor="updateExisting" className="text-gray-700">Update existing contacts</label>
-                </div>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={handlePreview}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-semibold transition-colors duration-200 flex items-center shadow-md hover:shadow-lg"
-                    disabled={loading}
-                  >
-                    {loading && !previewData && <FaSpinner className="animate-spin mr-2" />}
-                    Upload for Preview
-                  </button>
-                </div>
-                {previewData && previewData.headers && previewData.headers.length > 0 && previewData.contacts && previewData.contacts.length > 0 ? (
-                  <div className="mt-4">
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900">Preview of Contacts to be Imported</h3>
-                    {previewData.unmappedFields && previewData.unmappedFields.length > 0 && (
-                      <p className="text-yellow-600 mb-2">
-                        Unmapped columns (added to notes): {previewData.unmappedFields.join(', ')}
-                      </p>
-                    )}
-                    <div className="mb-4">
-                      <label className="block text-gray-700 font-semibold mb-2">Select Columns to Import</label>
-                      <div className="flex flex-wrap gap-3">
-                        {previewData.headers.map(header => (
-                          <label key={header} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedColumns.includes(header.toLowerCase())}
-                              onChange={(e) => {
-                                setSelectedColumns(prev =>
-                                  e.target.checked ? [...prev, header.toLowerCase()] : prev.filter(col => col !== header.toLowerCase())
-                                );
-                              }}
-                              className="custom-checkbox"
-                            />
-                            <span className="text-sm text-gray-700">{header}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <label className="block text-gray-700 font-semibold mb-2">Contacts to be Created</label>
-                      <select multiple className="preview-select" size="5">
-                        {previewData.contacts.map((contact, index) => (
-                          <option key={index} value={index}>
-                            {contact.name || 'Unnamed'} (Email: {contact.email || 'N/A'}, Phone: {contact.phone || 'N/A'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {importProgress > 0 && (
-                      <div className="mt-4">
-                        <label className="block text-gray-700 font-semibold">Import Progress</label>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-purple-600 h-2.5 rounded-full" style={{ width: `${importProgress}%` }}></div>
-                        </div>
-                        <p className="text-sm text-gray-600">{Math.round(importProgress)}%</p>
-                      </div>
-                    )}
-                    <div className="fixed-buttons">
-                      <button
-                        onClick={() => {
-                          setPreviewData(null);
-                          setSelectedColumns([]);
-                          setImportProgress(0);
-                        }}
-                        className="px-4 py-2 bg-gray-200 rounded-xl hover:bg-gray-300 text-gray-800 font-semibold transition-colors duration-200 shadow-md hover:shadow-lg"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleImportConfirm}
-                        className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 font-semibold transition-colors duration-200 flex items-center shadow-md hover:shadow-lg"
-                        disabled={loading}
-                      >
-                        {loading && <FaSpinner className="animate-spin mr-2" />}
-                        Confirm Import
-                      </button>
-                    </div>
-                  </div>
-                ) : previewData ? (
-                  <div className="mt-4 text-red-600">
-                    No valid data to preview. Please check the file format and try again.
-                  </div>
-                ) : null}
-              </div>
+              <button
+                onClick={handleImportConfirm}
+                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold transition-colors duration-200 flex items-center shadow-md disabled:bg-gray-400"
+                disabled={loading || selectedColumns.length === 0}
+              >
+                {loading && <FaSpinner className="animate-spin mr-2" />}
+                Confirm Import
+              </button>
             </div>
           </div>
-        )}
+        ) : previewData ? (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+            <p className="text-sm text-red-700">
+              No valid data to preview. Please check the file format and try again.
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Export Popup */}
         {showExportModal && (

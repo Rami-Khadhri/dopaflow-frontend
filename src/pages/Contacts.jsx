@@ -7,6 +7,7 @@ import {
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 
 // Axios config
 axios.defaults.baseURL = 'http://localhost:8080';
@@ -18,7 +19,33 @@ const getInitials = (name = '') => {
   const names = name.split(' ');
   return names.map((n) => n.charAt(0)).join('').toUpperCase().slice(0, 2);
 };
+// Define the loadCompanyOptions function for AsyncSelect
+const loadCompanyOptions = async (inputValue) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('No token found');
+    
+    const response = await axios.get('/api/companies/search', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        query: inputValue || '', // Empty string if no input to get some default options
+        page: 0, // First page
+        size: 50, // Fetch 50 companies, adjust if needed
+        sort: 'name,asc', // Sort by name alphabetically
+      },
+    });
 
+    const companies = response.data.content || [];
+    return companies.map(company => ({
+      value: company.id,
+      label: company.name,
+      company: { id: company.id, name: company.name },
+    }));
+  } catch (err) {
+    console.error('Failed to fetch companies:', err);
+    return [];
+  }
+};
 const getRandomColor = () => '#b0b0b0';
 const customStyles = `
   .form-container {
@@ -195,6 +222,62 @@ const customStyles = `
 body:has(.no-scroll) {
   overflow: hidden; /* Locks body scroll */
 }
+  .checkbox-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  cursor: pointer;
+}
+
+.checkbox-wrapper span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: #ffffff;
+  border: 2px solid #d1d5db;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked + span {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.checkbox-wrapper input[type="checkbox"]:hover:not(:disabled) + span {
+  border-color: #93c5fd;
+}
+
+.checkbox-wrapper input[type="checkbox"]:disabled + span {
+  background-color: #e5e7eb;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.checkbox-wrapper span svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.checkbox-wrapper input[type="checkbox"]:checked + span svg {
+  opacity: 1;
+}
 `;
 
 // Debounce utility
@@ -261,23 +344,32 @@ const Contacts = () => {
     if (newCompanyId || canceledFromCompanies) {
       const pendingData = JSON.parse(localStorage.getItem('pendingContactData') || '{}');
       const restoredOwner = pendingData.owner ? users.find(u => u.id === pendingData.owner.id) : null;
-      const restoredCompany = newCompanyId
-        ? companies.find(c => c.id === parseInt(newCompanyId, 10))
-        : (pendingData.company ? companies.find(c => c.id === pendingData.company.id) : null);
   
-      setFormData({
-        ...pendingData,
-        owner: restoredOwner,
-        company: restoredCompany,
-        photo: null,
-        photoUrl: '',
-      });
-      setShowForm(true);
-      // Preserve editingContactId if it exists
-      if (pendingData.id) {
-        setEditingContactId(pendingData.id);
-      }
-      // Don’t navigate away—keep newCompanyId in URL
+      const setForm = async () => {
+        let restoredCompany = null;
+        if (newCompanyId) {
+          const company = await fetchCompanyById(newCompanyId);
+          if (company) {
+            restoredCompany = { id: company.id, name: company.name };
+          }
+        } else if (pendingData.company) {
+          restoredCompany = companies.find(c => c.id === pendingData.company.id) || null;
+        }
+  
+        setFormData({
+          ...pendingData,
+          owner: restoredOwner,
+          company: restoredCompany,
+          photo: null,
+          photoUrl: '',
+        });
+        setShowForm(true);
+        if (pendingData.id) {
+          setEditingContactId(pendingData.id);
+        }
+      };
+  
+      setForm();
     }
   }, [location.search, companies, users]);
 
@@ -375,19 +467,30 @@ const Contacts = () => {
     }
   }, []);
 
-  const fetchCompanies = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/companies/all', {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { page: 0, size: 1000, sort: 'name,asc' }
-      });
-      setCompanies(response.data.content || []);
-    } catch (err) {
-      setError('Failed to fetch companies');
-    }
-  }, []);
-
+// In contact.jsx, replace the fetchCompanies function
+const fetchCompanies = useCallback(async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get('/api/companies/allNames', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setCompanies(response.data || []);
+  } catch (err) {
+    setError('Failed to fetch companies');
+  }
+}, []);
+const fetchCompanyById = async (id) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`/api/companies/get/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (err) {
+    console.error('Failed to fetch company:', err);
+    return null;
+  }
+};
   // Effect Hooks
   useEffect(() => {
     fetchContacts();
@@ -477,34 +580,19 @@ const Contacts = () => {
         owner: formData.owner ? { id: formData.owner.id } : null,
         company: formData.company ? { id: formData.company.id } : null,
       };
+  
       const response = editingContactId
         ? await axios.put(`/api/contacts/update/${editingContactId}`, contactData, { headers: { Authorization: `Bearer ${token}` } })
         : await axios.post('/api/contacts/add', contactData, { headers: { Authorization: `Bearer ${token}` } });
   
-      setContacts((prev) => editingContactId ? prev.map(c => c.id === editingContactId ? response.data : c) : [response.data, ...prev]);
+      setContacts(prev => editingContactId ? prev.map(c => c.id === editingContactId ? response.data : c) : [response.data, ...prev]);
       setMessage(editingContactId ? 'Contact updated!' : 'Contact added!');
   
-      // Check if we're coming back from Companies with a newCompanyId
-      const params = new URLSearchParams(location.search);
-      const newCompanyId = params.get('newCompanyId');
-  
-      if (newCompanyId) {
-        // If we have a newCompanyId, keep the form open with the updated data
-        const updatedCompany = companies.find(c => c.id === parseInt(newCompanyId, 10));
-        setFormData(prev => ({
-          ...prev,
-          company: updatedCompany ? { id: updatedCompany.id, name: updatedCompany.name } : prev.company,
-        }));
-        setShowForm(true); // Ensure form stays open
-        navigate(`/contacts?newCompanyId=${newCompanyId}`); // Keep newCompanyId in URL
-      } else {
-        // Normal save (no company redirect), reset and close form
-        localStorage.removeItem('pendingContactData');
-        navigate('/contacts');
-        resetForm();
-      }
-  
-      fetchContacts();
+      // Always close the form and reset the URL to /contacts
+      localStorage.removeItem('pendingContactData'); // Clean up any pending data
+      resetForm(); // Close the form and reset formData
+      navigate('/contacts'); // Reset URL to /contacts, no params
+      fetchContacts(); // Refresh the contact list
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save contact');
     } finally {
@@ -705,11 +793,12 @@ const Contacts = () => {
     })),
   ];
 
-  const companyOptions = companies.map(company => ({
-    value: company.id,
-    label: company.name,
-    company,
-  }));
+// In contact.jsx, update companyOptions
+const companyOptions = companies.map(company => ({
+  value: company.id,
+  label: company.name,
+  company: { id: company.id, name: company.name }, // Simplified company object
+}));
 
   const handleSelectContact = (contactId) => {
     setSelectedContacts(prev => {
@@ -1005,13 +1094,19 @@ const Contacts = () => {
             <table className="min-w-full">
               <thead className="bg-blue-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-gray-700 font-semibold">
-                    <input
-                      type="checkbox"
-                      className="custom-checkbox"
-                      checked={contacts.length > 0 && contacts.every(contact => selectedContacts.has(contact.id))}
-                      onChange={handleSelectAll}
-                    />
+                <th className="px-6 py-4 text-left text-gray-700 font-semibold">
+                    <label className="checkbox-wrapper">
+                      <input
+                        type="checkbox"
+                        checked={contacts.length > 0 && contacts.every(contact => selectedContacts.has(contact.id))}
+                        onChange={handleSelectAll}
+                      />
+                      <span>
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    </label>
                   </th>
                   {['name', 'email', 'phone', 'owner', 'status', 'company', 'createdAt'].map(col => (
                     <th
@@ -1034,15 +1129,21 @@ const Contacts = () => {
                     className="hover:bg-gray-50 transition-colors"
                     onClick={() => debouncedSetSelectedContact(contact)}
                   >
-                    <td className="px-6 py-4">
-                      <input
-                        type="checkbox"
-                        className="custom-checkbox"
-                        checked={selectedContacts.has(contact.id)}
-                        onChange={() => handleSelectContact(contact.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </td>
+                      <td className="px-6 py-4">
+                        <label className="checkbox-wrapper">
+                          <input
+                            type="checkbox"
+                            checked={selectedContacts.has(contact.id)}
+                            onChange={() => handleSelectContact(contact.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span>
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                        </label>
+                      </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-4">
                         {contact.photoUrl ? (
@@ -1232,8 +1333,6 @@ const Contacts = () => {
         )}
 
         {/* Import Modal */}
-        // Replace the existing showImportModal section in your Contacts component with this:
-
 {showImportModal && (
   <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center z-[9990] p-4">
     <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto transform transition-all duration-300 border-t-4 border-purple-500">
@@ -1531,34 +1630,36 @@ const Contacts = () => {
         <div className="flex flex-col">
           <label className="form-label">Company</label>
           <div className="flex items-center gap-2">
-            <Select
-              options={companyOptions}
-              value={formData.company ? companyOptions.find(opt => opt.value === formData.company.id) : null}
-              onChange={(opt) => setFormData({ ...formData, company: opt?.company || null })}
-              placeholder="Select a company"
-              className="form-select-container flex-1"
-              styles={{
-                control: (provided) => ({
-                  ...provided,
-                  border: '1px solid #d1d5db',
-                  borderRadius: '0.5rem',
-                  padding: '0.25rem',
-                  background: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                  '&:hover': { borderColor: '#93c5fd' },
-                  '&:focus': { borderColor: '#3b82f6', boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.3)' },
-                }),
-                placeholder: (provided) => ({ ...provided, color: '#9ca3af', fontSize: '0.9rem' }),
-                option: (provided, state) => ({
-                  ...provided,
-                  backgroundColor: state.isFocused ? '#eff6ff' : 'white',
-                  color: '#374151',
-                  fontSize: '0.9rem',
-                  '&:hover': { backgroundColor: '#dbeafe' },
-                }),
-              }}
-              isClearable
-            />
+                  <AsyncSelect
+          cacheOptions
+          defaultOptions // Loads some options when the dropdown opens
+          loadOptions={loadCompanyOptions}
+          value={formData.company ? { value: formData.company.id, label: formData.company.name, company: formData.company } : null}
+          onChange={(opt) => setFormData({ ...formData, company: opt?.company || null })}
+          placeholder="Search for a company"
+          className="form-select-container flex-1"
+          styles={{
+            control: (provided) => ({
+              ...provided,
+              border: '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+              padding: '0.25rem',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              '&:hover': { borderColor: '#93c5fd' },
+              '&:focus': { borderColor: '#3b82f6', boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.3)' },
+            }),
+            placeholder: (provided) => ({ ...provided, color: '#9ca3af', fontSize: '0.9rem' }),
+            option: (provided, state) => ({
+              ...provided,
+              backgroundColor: state.isFocused ? '#eff6ff' : 'white',
+              color: '#374151',
+              fontSize: '0.9rem',
+              '&:hover': { backgroundColor: '#dbeafe' },
+            }),
+          }}
+          isClearable
+        />
             <button
               type="button"
               onClick={handleCreateCompanyRedirect}

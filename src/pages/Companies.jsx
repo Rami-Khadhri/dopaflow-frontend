@@ -176,17 +176,78 @@ const customStyles = `
   .form-select-container {
     position: relative;
   }
-      .no-scroll {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow-y: auto; /* Form scrolls, not background */
-}
-body:has(.no-scroll) {
-  overflow: hidden; /* Locks body scroll */
-}
+  .form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: scroll; /* Allows form to scroll inside */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+  .form-overlay > div {
+    margin: auto; /* Keeps form centered */
+  }
+  .no-scroll {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto; /* Form scrolls, not background */
+  }
+  body:has(.no-scroll) {
+    overflow: hidden; /* Locks body scroll */
+  }
+  .checkbox-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .checkbox-wrapper input[type="checkbox"] {
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    cursor: pointer;
+  }
+  .checkbox-wrapper span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: #ffffff;
+    border: 2px solid #d1d5db;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .checkbox-wrapper input[type="checkbox"]:checked + span {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+  }
+  .checkbox-wrapper input[type="checkbox"]:hover:not(:disabled) + span {
+    border-color: #93c5fd;
+  }
+  .checkbox-wrapper input[type="checkbox"]:disabled + span {
+    background-color: #e5e7eb;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+  }
+  .checkbox-wrapper span svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: #ffffff;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .checkbox-wrapper input[type="checkbox"]:checked + span svg {
+    opacity: 1;
+  }
 `;
 
 // Main Component
@@ -837,14 +898,22 @@ const Companies = () => {
             </div>
           ) : (
             <>
-              <div className="col-span-full flex items-center justify-between mb-4">
+              <div className="col-span-full flex items-center ml-2 text-xl justify-between mb-4">
                 <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    className="custom-checkbox"
-                    onChange={handleSelectAll}
-                    checked={companies.length > 0 && companies.every(c => selectedCompanies.has(c.id))}
-                  />
+                  <div className="checkbox-wrapper">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={companies.length > 0 && companies.every(c => selectedCompanies.has(c.id))}
+                        onChange={handleSelectAll}
+                      />
+                      <span>
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    </label>
+                  </div>
                   <span className="text-gray-700">Select All</span>
                 </label>
                 {selectedCompanies.size > 0 && (
@@ -861,13 +930,21 @@ const Companies = () => {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        className="custom-checkbox"
-                        checked={selectedCompanies.has(company.id)}
+                    <div className="checkbox-wrapper">
+                    <label>
+                     <input
+                       type="checkbox"
+                         checked={selectedCompanies.has(company.id)}
                         onChange={() => handleSelectCompany(company.id)}
                         onClick={e => e.stopPropagation()}
-                      />
+                         />
+                      <span>
+                       <svg viewBox="0 0 20 20" fill="currentColor">
+                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      </span>
+                    </label>
+                    </div>
                      <div
                         className="w-[3rem] h-[3rem] md:w-[3.5rem] md:h-[3.5rem] rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden"
                         style={{ backgroundColor: company.photoUrl ? "transparent" : getRandomColor() }}
@@ -1123,17 +1200,6 @@ const Companies = () => {
                             </div>
                           </div>
                         </div>
-
-                        {/* Import Progress */}
-                        {importProgress > 0 && (
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Import Progress</h3>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                              <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${importProgress}%` }}></div>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1">{Math.round(importProgress)}%</p>
-                          </div>
-                        )}
 
                         {/* Action Buttons */}
                         <div className="flex justify-end space-x-4 pt-4">

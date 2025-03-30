@@ -1278,7 +1278,7 @@ const Companies = () => {
               <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center h-screen no-scroll" style={{ zIndex: 9990 }}>
                 <div className="form-container w-full max-w-2xl relative max-h-[70vh] overflow-y-auto">
                   <button
-                    onClick={resetForm}
+                    onClick={handleCancel}
                     className="absolute top-4 right-4 text-gray-600 hover:text-red-500 text-2xl font-bold"
                   >
                     ✕

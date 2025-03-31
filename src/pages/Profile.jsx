@@ -847,7 +847,7 @@ const Profile = ({ setUser }) => {
                   <div className="space-y-6 relative">
                     <div className="flex justify-center mb-4">
                       <div className="p-6 bg-white rounded-xl shadow-lg border-2 border-[#0056B3]">
-                        <QRCodeSVG value={qrCodeUrl} size={160} bgColor="#FFFFFF" fgColor="#0056B3" level="H" />
+                        <QRCodeSVG value={qrCodeUrl} size={150} bgColor="#FFFFFF" fgColor="#0056B3" level="H" />
                       </div>
                     </div>
                     <p className="text-gray-600 text-lg font-medium px-4">

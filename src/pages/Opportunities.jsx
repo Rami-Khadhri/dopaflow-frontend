@@ -779,7 +779,7 @@ const Opportunities = () => {
                       ) : (
                         stage.opportunities.map((opp) => (
                           <tr key={opp.id} className="border-b border-gray-200 hover:bg-gray-50 transition-all duration-200">
-                            <td className="px-4 py-3 text-sm text-gray-800 break-words max-w-xs">{opp.title}</td>
+                            <td className="px-4 py-3 text-sm text-gray-800 break-words max-w-72">{opp.title}</td>
                             <td className="px-4 py-3 text-sm text-indigo-600 font-medium">{formatCurrency(opp.value)}</td>
                             <td className="px-4 py-3 text-sm text-gray-700">{opp.contact?.name || 'None'}</td>
                             <td className="px-4 py-3">
@@ -989,280 +989,332 @@ const Opportunities = () => {
 
       {/* Opportunity Form */}
       {showForm && formData && (
-        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Title</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter opportunity title"
-                  required
-                />
-              </div>
+  <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+    <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Title</label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Enter opportunity title"
+            required
+          />
+        </div>
 
-              <div className="space-y-1 w-full max-w-md">
-                <label className="block text-sm font-medium text-gray-700">Contact</label>
-                <div className="relative">
-                  {preselectedContactId && !editingOpportunityId ? (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center overflow-hidden">
-                      <span className="truncate group relative">
-                        {preselectedContactName || 'Loading...'}
+        {/* Updated Contact Field */}
+        <div className="space-y-1 w-full max-w-md">
+          <label className="block text-sm font-medium text-gray-700">Contact</label>
+          <div className="relative">
+            {formData.contactId ? (
+              (() => {
+                const selectedContact = contacts.find((contact) => contact.id === Number(formData.contactId));
+                if (!selectedContact && preselectedContactId && preselectedContactName) {
+                  // If the contact isn't in the contacts array but we have preselected data
+                  return (
+                    <div
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+                        text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
+                      onClick={() => setShowContactDropdown(!showContactDropdown)}
+                    >
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                      >
+                        {getInitials(preselectedContactName)}
+                      </div>
+                      <span className="truncate group relative flex-1">
+                        {preselectedContactName}
                         <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
                           {preselectedContactName}
                         </span>
                       </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer 
-                          flex justify-between items-center min-w-0"
-                        onClick={() => setShowContactDropdown(!showContactDropdown)}
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
                       >
-                        <span className={formData.contactId ? 'text-gray-700 flex items-center space-x-3 min-w-0' : 'text-gray-400 truncate'}>
-                          {formData.contactId ? (
-                            <>
-                              {contacts.find((contact) => contact.id === formData.contactId)?.photoUrl ? (
-                                <img
-                                  src={`http://localhost:8080${contacts.find((contact) => contact.id === formData.contactId)?.photoUrl}`}
-                                  alt={contacts.find((contact) => contact.id === formData.contactId)?.name}
-                                  className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                                />
-                              ) : (
-                                <div
-                                  className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
-                                >
-                                  {getInitials(contacts.find((contact) => contact.id === formData.contactId)?.name)}
-                                </div>
-                              )}
-                              <span className="ml-2 truncate group relative">
-                                {contacts.find((contact) => contact.id === formData.contactId)?.name || 'Select a contact'}
-                                <span className="text-xs">
-                                  {contacts.find((contact) => contact.id === formData.contactId)?.company?.name 
-                                    ? ` (${contacts.find((contact) => contact.id === formData.contactId)?.company.name})` 
-                                    : ''}
-                                </span>
-                                <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                                  {contacts.find((contact) => contact.id === formData.contactId)?.name}
-                                </span>
-                              </span>
-                            </>
-                          ) : (
-                            'Select a contact'
-                          )}
-                        </span>
-                        <svg
-                          className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                      </div>
-
-                      {showContactDropdown && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                          <div className="p-2 border-b border-gray-200">
-                            <div className="relative">
-                              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                              <input
-                                type="text"
-                                value={contactSearch}
-                                onChange={handleContactSearch}
-                                className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg 
-                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                                placeholder="Search contacts..."
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                          <div className="max-h-48 overflow-y-auto">
-                            <div
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500 truncate"
-                              onClick={() => {
-                                setFormData({ ...formData, contactId: null });
-                                setShowContactDropdown(false);
-                                setContactSearch('');
-                              }}
-                            >
-                              (None)
-                            </div>
-                            {filteredContacts.length > 0 ? (
-                              filteredContacts.map((contact) => (
-                                <div
-                                  key={contact.id}
-                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3 min-w-0"
-                                  onClick={() => {
-                                    setFormData({ ...formData, contactId: contact.id });
-                                    setShowContactDropdown(false);
-                                    setContactSearch('');
-                                  }}
-                                >
-                                  <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
-                                    style={{ backgroundColor: contact.photoUrl ? "transparent" : getRandomColor() }}
-                                  >
-                                    {contact.photoUrl ? (
-                                      <img
-                                        src={`http://localhost:8080${contact.photoUrl}`}
-                                        alt={contact.name}
-                                        className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
-                                      />
-                                    ) : (
-                                      getInitials(contact.name)
-                                    )}
-                                  </div>
-                                  <span className="text-gray-900 font-medium truncate group relative">
-                                    {contact.name} <span className="text-xs">{contact.company?.name ? `(${contact.company.name})` : ''}</span>
-                                    <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                                      {contact.name}
-                                    </span>
-                                  </span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="px-4 py-2 text-gray-500">No contacts found</div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Value (TND)</label>
-                <input
-                  type="number"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter value"
-                  min="0"
-                  step="100"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Priority</label>
-                <select
-                  value={formData.priority}
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                >
-                  <option value="HIGH">High</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="LOW">Low</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Progress (%)</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    value={formData.progress}
-                    onChange={(e) => setFormData({ ...formData, progress: Math.min(100, Math.max(0, e.target.value)) })}
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                  );
+                }
+                if (!selectedContact) {
+                  return (
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
+                      <span>Loading...</span>
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                  );
+                }
+                return (
+                  <div
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                      focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    min="0"
-                    max="100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })}
-                    className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
+                      text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
+                    onClick={() => setShowContactDropdown(!showContactDropdown)}
                   >
-                    <FaArrowUp />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })}
-                    className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
+                    {selectedContact.photoUrl ? (
+                      <img
+                        src={`http://localhost:8080${selectedContact.photoUrl}`}
+                        alt={selectedContact.name}
+                        className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                      >
+                        {getInitials(selectedContact.name)}
+                      </div>
+                    )}
+                    <span className="truncate group relative flex-1">
+                      {selectedContact.name}
+                      <span className="text-xs">
+                        {selectedContact.company?.name ? ` (${selectedContact.company.name})` : ''}
+                      </span>
+                      <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                        {selectedContact.name}
+                      </span>
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                );
+              })()
+            ) : (
+              <div
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+                  text-gray-400 flex justify-between items-center min-w-0 cursor-pointer"
+                onClick={() => setShowContactDropdown(!showContactDropdown)}
+              >
+                <span>Select a contact</span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            )}
+
+            {/* Contact Dropdown */}
+            {showContactDropdown && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="p-2 border-b border-gray-200">
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={contactSearch}
+                      onChange={handleContactSearch}
+                      className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg 
+                        focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Search contacts..."
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  <div
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500 truncate"
+                    onClick={() => {
+                      setFormData({ ...formData, contactId: null });
+                      setShowContactDropdown(false);
+                      setContactSearch('');
+                    }}
                   >
-                    <FaArrowDown />
-                  </button>
+                    (None)
+                  </div>
+                  {filteredContacts.length > 0 ? (
+                    filteredContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3 min-w-0"
+                        onClick={() => {
+                          setFormData({ ...formData, contactId: contact.id });
+                          setShowContactDropdown(false);
+                          setContactSearch('');
+                        }}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
+                          style={{ backgroundColor: contact.photoUrl ? "transparent" : getRandomColor() }}
+                        >
+                          {contact.photoUrl ? (
+                            <img
+                              src={`http://localhost:8080${contact.photoUrl}`}
+                              alt={contact.name}
+                              className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
+                            />
+                          ) : (
+                            getInitials(contact.name)
+                          )}
+                        </div>
+                        <span className="text-gray-900 font-medium truncate group relative">
+                          {contact.name}{' '}
+                          <span className="text-xs">
+                            {contact.company?.name ? `(${contact.company.name})` : ''}
+                          </span>
+                          <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                            {contact.name}
+                          </span>
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-2 text-gray-500">No contacts found</div>
+                  )}
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Stage</label>
-                <select
-                  value={formData.stage}
-                  onChange={(e) => {
-                    const stage = e.target.value;
-                    const status = stage === 'CLOSED' ? formData.status : 'IN_PROGRESS';
-                    setFormData({ ...formData, stage, status });
-                  }}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                >
-                  {Object.keys(stageMapping).map((key) => (
-                    <option key={key} value={key}>{stageMapping[key]}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  disabled={formData.stage !== 'CLOSED'}
-                >
-                  {formData.stage === 'CLOSED' ? (
-                    <>
-                      <option value="WON">Won</option>
-                      <option value="LOST">Lost</option>
-                    </>
-                  ) : (
-                    <option value="IN_PROGRESS">In Progress</option>
-                  )}
-                </select>
-              </div>
-
-              <div className="md:col-span-2 flex justify-end space-x-4">
-                <button
-                type="button"
-                onClick={() => {
-                  debouncedSetShowForm(false);
-                  setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
-                  setEditingOpportunityId(null); // Reset edit mode
-                  setContactSearch('');
-                  setPreselectedContactName('');
-                  if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
-                }}
-                className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full 
-                  hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
-              >
-                Cancel
-              </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full 
-                    hover:from-blue-700 hover:to-blue-800 shadow-md transition-all duration-300 flex items-center"
-                >
-                  {editingOpportunityId ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
-      )}
 
+        {/* Rest of the form fields remain unchanged */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Value (TND)</label>
+          <input
+            type="number"
+            value={formData.value}
+            onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            placeholder="Enter value"
+            min="0"
+            step="100"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Priority</label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          >
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Progress (%)</label>
+          <div className="flex items-center space-x-2">
+            <input
+              type="number"
+              value={formData.progress}
+              onChange={(e) => setFormData({ ...formData, progress: Math.min(100, Math.max(0, e.target.value)) })}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+                focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              min="0"
+              max="100"
+            />
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })}
+              className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
+            >
+              <FaArrowUp />
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })}
+              className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
+            >
+              <FaArrowDown />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Stage</label>
+          <select
+            value={formData.stage}
+            onChange={(e) => {
+              const stage = e.target.value;
+              const status = stage === 'CLOSED' ? formData.status : 'IN_PROGRESS';
+              setFormData({ ...formData, stage, status });
+            }}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          >
+            {Object.keys(stageMapping).map((key) => (
+              <option key={key} value={key}>{stageMapping[key]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            disabled={formData.stage !== 'CLOSED'}
+          >
+            {formData.stage === 'CLOSED' ? (
+              <>
+                <option value="WON">Won</option>
+                <option value="LOST">Lost</option>
+              </>
+            ) : (
+              <option value="IN_PROGRESS">In Progress</option>
+            )}
+          </select>
+        </div>
+
+        <div className="md:col-span-2 flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={() => {
+              debouncedSetShowForm(false);
+              setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+              setEditingOpportunityId(null);
+              setContactSearch('');
+              setPreselectedContactName('');
+              if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
+            }}
+            className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full 
+              hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full 
+              hover:from-blue-700 hover:to-blue-800 shadow-md transition-all duration-300 flex items-center"
+          >
+            {editingOpportunityId ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
       {/* Expanded Opportunity Details */}
       {expandedOpportunityId && (
         <div

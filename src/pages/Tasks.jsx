@@ -144,7 +144,7 @@ const TaskDetailsPopup = ({ task, show, onClose, column }) => (
         scale-95 animate-scaleIn"
     >
       <div className="flex justify-between items-start mb-6">
-        <h2 className={`text-2xl font-bold text-gray-800 ${column === 'Cancelled' ? 'line-through' : ''}`}>
+      <h2 className={`text-2xl font-bold text-gray-800 break-words overflow-hidden ${column === 'Cancelled' ? 'line-through' : ''}`}>
           {task.title}
         </h2>
         <button 
@@ -180,10 +180,12 @@ const TaskDetailsPopup = ({ task, show, onClose, column }) => (
         </div>
         <div className="flex items-center space-x-3">
           <FaFolderOpen className="text-gray-400" />
-          <span>
+          
             <span className="font-medium">Opportunity: </span>
-            {task.opportunityTitle || 'No opportunity'}
-          </span>
+            <span className="block break-words overflow-hidden text-gray-700">
+          {task.opportunityTitle || 'No opportunity'}
+        </span>
+                
         </div>
         <div className="flex items-center space-x-3">
           <FaTag className="text-gray-400" />
@@ -216,9 +218,12 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted }) => 
       >
         <div className="flex justify-between items-start mb-3">
           <div className="flex-1 pr-4">
-            <h4 className={`text-lg font-semibold text-gray-800 break-words ${column === 'Cancelled' ? 'line-through' : ''}`}>
+          <h4 className="relative group text-lg font-semibold text-gray-800 max-w-[8ch] truncate">
+            {task.title.length > 8 ? task.title.slice(0, 8) + "..." : task.title}
+            <small className="absolute left-0 top-full mt-1 w-max max-w-xs bg-gray-800 text-white text-xs p-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               {task.title}
-            </h4>
+            </small>
+          </h4>
           </div>
           <div className="flex items-center space-x-2">
             <span 
@@ -233,7 +238,9 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted }) => 
             >
               <FaExpandArrowsAlt className="w-5 h-5" />
             </button>
+            
           </div>
+          
         </div>
         <div className="space-y-2 text-sm text-gray-500 flex-1">
           <div className="flex items-center space-x-2">
@@ -246,7 +253,9 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted }) => 
           </div>
           <div className="flex items-center space-x-2">
             <FaFolderOpen className="text-gray-400 w-4 h-4" />
-            <span>{task.opportunityTitle || 'No opportunity'}</span>
+            <span className="truncate block max-w-[90%] text-gray-700">
+            {task.opportunityTitle || 'No opportunity'}
+          </span>
           </div>
           <div className="flex items-center space-x-2">
             <FaTag className="text-gray-400" />

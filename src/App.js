@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
-import { FaSearch, FaCog } from 'react-icons/fa'; // Removed FaBell, FaKey, FaShieldAlt, FaChevronRight
+import { FaSearch, FaCog } from 'react-icons/fa';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Contacts from './pages/Contacts';
@@ -16,14 +16,13 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import logo from './images/logodopaflow.png';
 import logo2 from './images/logo_simple_dopaflow.png';
-import aiIcon from './images/ai-icon.png';
 import axios from 'axios';
 import Page404 from './pages/Page404';
-import { AIChat } from './AIService';
 import SidebarIcon from './images/sidebar.png';
 import Companies from './pages/Companies';
-import NotificationDropdown from './Notification'; // Import NotificationDropdown
-import Notifications from './pages/Notifications'; // New import
+import NotificationDropdown from './Notification';
+import Notifications from './pages/Notifications';
+
 // Utility Components
 const RefreshOnMount = ({ fetchData, hasError }) => {
   const [hasFetched, setHasFetched] = useState(false);
@@ -72,10 +71,9 @@ const Tooltip = ({ label, isSidebarOpen, iconRef, children }) => {
   );
 };
 
-const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
+const SearchBar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [aiSuggestions, setAISuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -101,17 +99,12 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
-      setAISuggestions([]);
       setIsOpen(false);
       return;
     }
     const lowerQuery = query.toLowerCase().trim();
     const results = searchItems.filter(item => item.label.toLowerCase().includes(lowerQuery));
     setSearchResults(results);
-    setAISuggestions([
-      { label: `What is ${query}`, id: 'ai-0' },
-      { label: `Search more for ${query}`, id: 'ai-1' },
-    ]);
     setIsOpen(true);
   };
 
@@ -123,16 +116,6 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
     }
     setSearchQuery('');
     setSearchResults([]);
-    setAISuggestions([]);
-    setIsOpen(false);
-  };
-
-  const handleAISuggestionClick = (suggestion) => {
-    setInitialChatMessage({ sender: 'user', text: suggestion.label });
-    setIsAIChatOpen(true);
-    setSearchQuery('');
-    setSearchResults([]);
-    setAISuggestions([]);
     setIsOpen(false);
   };
 
@@ -154,7 +137,7 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
           />
         </div>
       </form>
-      {isOpen && (searchResults.length > 0 || aiSuggestions.length > 0) && (
+      {isOpen && searchResults.length > 0 && (
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-60 overflow-y-auto animate-fadeIn">
           {searchResults.map((result, index) => (
             <div
@@ -163,16 +146,6 @@ const SearchBar = ({ setIsAIChatOpen, setInitialChatMessage }) => {
               className="px-5 py-2.5 hover:bg-gray-100 cursor-pointer text-sm font-medium text-gray-800 border-b border-gray-200 last:border-b-0"
             >
               {result.label}
-            </div>
-          ))}
-          {aiSuggestions.map(suggestion => (
-            <div
-              key={suggestion.id}
-              onClick={() => handleAISuggestionClick(suggestion)}
-              className="px-2 py-2.5 hover:bg-blue-50 cursor-pointer text-sm text-blue-600 flex items-center border-b border-gray-200 last:border-b-0"
-            >
-              <img src={aiIcon} alt="AI" className="w-6 h-6 mr-2" />
-              {suggestion.label}
             </div>
           ))}
         </div>
@@ -239,9 +212,6 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [error, setError] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => JSON.parse(localStorage.getItem('sidebarOpen') || 'true'));
-  const [showAIButton, setShowAIButton] = useState(() => JSON.parse(localStorage.getItem('showAIButton') || 'true'));
-  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [initialChatMessage, setInitialChatMessage] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const dropdownRef = useRef(null);
 
@@ -355,12 +325,6 @@ function App() {
     localStorage.setItem('sidebarOpen', JSON.stringify(newState));
   };
 
-  const toggleShowAIButton = () => {
-    const newState = !showAIButton;
-    setShowAIButton(newState);
-    localStorage.setItem('showAIButton', JSON.stringify(newState));
-  };
-
   const navLinks = user
     ? [
         ...(user.role === 'User' ? [] : [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard' }]),
@@ -460,8 +424,8 @@ function App() {
             </aside>
             <main className={`flex-1 p-8 pt-8 overflow-auto transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-20'}`}>
               <div className="flex items-center mb-4">
-                <SearchBar setIsAIChatOpen={setIsAIChatOpen} setInitialChatMessage={setInitialChatMessage} />
-                <NotificationDropdown /> {/* Imported component */}
+                <SearchBar />
+                <NotificationDropdown />
               </div>
               {error && <div className="text-red-600 text-center p-4 mb-4">{error}</div>}
               <div className="flex justify-end items-center mb-8">
@@ -505,9 +469,6 @@ function App() {
                         <NavLink to="/profile" onClick={() => setIsDropdownOpen(false)} className="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-lg">
                           Profile
                         </NavLink>
-                        <button onClick={() => { toggleShowAIButton(); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-lg">
-                          {showAIButton ? 'Hide AI Assistant' : 'Show AI Assistant'}
-                        </button>
                         <button onClick={() => { handleLogout(); setIsDropdownOpen(false); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-100 rounded-lg">
                           Logout
                         </button>
@@ -527,7 +488,7 @@ function App() {
                   <Route path="/reports" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Reports /></ProtectedRoute>} />
                   <Route path="/opportunities" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Opportunities /></ProtectedRoute>} />
                   <Route path="/tickets" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Ticket /></ProtectedRoute>} />
-                  <Route path="/notifications" element={<ProtectedRoute fetchUser={fetchUser}><Notifications /></ProtectedRoute>} /> {/* New route */}
+                  <Route path="/notifications" element={<ProtectedRoute fetchUser={fetchUser}><Notifications /></ProtectedRoute>} />
                   <Route path="/tickets/:ticketId" element={<ProtectedRoute fetchUser={fetchUser} onlineUsers={onlineUsers}><Ticket /></ProtectedRoute>} />
                   <Route path="/companies" element={<ProtectedRoute fetchUser={fetchUser}><Companies /></ProtectedRoute>} />
                   <Route path="/login" element={<Navigate to="/profile" />} />
@@ -537,21 +498,6 @@ function App() {
                   <Route path="*" element={<Page404 isLoggedIn={true} />} />
                 </Routes>
               </div>
-              {showAIButton && (
-                <button
-                  onClick={() => setIsAIChatOpen(true)}
-                  className="neon-spinner"
-                >
-                  <div className="spinner-layers">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                  <img src={aiIcon} alt="AI" className="w-12 h-10" />
-                </button>
-              )}
-              {isAIChatOpen && <AIChat onClose={() => setIsAIChatOpen(false)} initialMessage={initialChatMessage} />}
             </main>
           </div>
         )}

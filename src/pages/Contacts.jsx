@@ -413,10 +413,10 @@ const Contacts = () => {
       const token = localStorage.getItem('token');
       console.log('Fetching contacts with token:', token ? 'Present' : 'Missing');
       if (!token) throw new Error('No token found');
-
+  
       const baseParams = getBaseParams();
       let data;
-
+  
       switch (activeTab) {
         case 'all':
           data = await fetchAllContacts(token, baseParams);
@@ -441,17 +441,29 @@ const Contacts = () => {
         default:
           throw new Error('Invalid activeTab value');
       }
-
-      console.log('Response received:', data);
-      setContacts(data.content || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalContacts(data.totalElements || data.content.length || 0);
+  
+      // Normalize the data to ensure consistent structure
+      const normalizedData = {
+        content: Array.isArray(data?.content) ? data.content : [],
+        totalPages: Number.isInteger(data?.totalPages) ? data.totalPages : 1,
+        totalElements: Number.isInteger(data?.totalElements) ? data.totalElements : (data?.content?.length || 0),
+      };
+  
+      console.log('Normalized response:', normalizedData);
+  
+      setContacts(normalizedData.content);
+      setTotalPages(normalizedData.totalPages);
+      setTotalContacts(normalizedData.totalElements);
       setSelectedContacts(new Set());
       setError(null);
     } catch (err) {
       console.error('Fetch error:', err.response ? err.response.data : err.message);
       setError(err.response?.status === 401 ? 'Unauthorized. Please log in.' : 'Failed to fetch contacts: ' + (err.response?.data?.error || err.message));
       if (err.response?.status === 401) navigate('/login');
+      // Set fallback values in case of error
+      setContacts([]);
+      setTotalPages(1);
+      setTotalContacts(0);
     } finally {
       setLoading(false);
     }

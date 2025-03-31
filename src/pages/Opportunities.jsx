@@ -3,9 +3,9 @@ import {
   FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
   FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt
 } from 'react-icons/fa';
-import axios from 'axios';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { json, useLocation, useNavigate } from 'react-router-dom';
 import debounce from 'lodash/debounce';
+import api from '../utils/api';
 
 const Opportunities = () => {
   const location = useLocation();
@@ -32,6 +32,7 @@ const Opportunities = () => {
     priority: 'MEDIUM',
     progress: 0,
     stage: 'PROSPECTION',
+    status: 'IN_PROGRESS',
   });
   const [editingOpportunityId, setEditingOpportunityId] = useState(null);
   const [contactSearch, setContactSearch] = useState('');
@@ -108,11 +109,7 @@ const Opportunities = () => {
         return;
       }
       try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/api/contacts/search', {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { query, size: 50 },
-        });
+        const response = await api.get('/contacts/search', { params: { query, size: 50 } });
         setFilteredContacts(response.data.content || []);
       } catch (error) {
         console.error('Failed to search contacts:', error);
@@ -137,21 +134,19 @@ const Opportunities = () => {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const [opportunitiesRes, contactsRes] = await Promise.all([
-        axios.get('http://localhost:8080/api/opportunities/all', { headers: { Authorization: `Bearer ${token}` }, params: { size: 50 } }),
-        axios.get('http://localhost:8080/api/contacts/all', { headers: { Authorization: `Bearer ${token}` }, params: { size: 50 } }),
+        api.get('/opportunities/all', { params: { size: 50 } }),
+        api.get('/contacts/all', { params: { size: 50 } }),
       ]);
       const opportunities = opportunitiesRes.data.content || [];
       setAllOpportunities(opportunities);
       const fetchedContacts = contactsRes.data.content || [];
-      console.log('Fetched contacts:', fetchedContacts); // Check if company is here
       setContacts(fetchedContacts);
       setFilteredContacts(fetchedContacts);
       applyFilters(opportunities);
-  
+
       if (preselectedContactId) {
-        const preselectedContact = fetchedContacts.find((c) => c.id === preselectedContactId);
+        const preselectedContact = fetchedContacts.find((c) => c.id === Number(preselectedContactId));
         if (preselectedContact) {
           setPreselectedContactName(preselectedContact.name);
         }
@@ -166,9 +161,7 @@ const Opportunities = () => {
 
   const fetchContactById = async (contactId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/contacts/get/${contactId}`, { headers: { Authorization: `Bearer ${token}` } });
-      console.log('Fetched contact by ID:', response.data); // Check company here
+      const response = await api.get(`/contacts/get/${contactId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch contact by ID:', error);
@@ -186,7 +179,7 @@ const Opportunities = () => {
   const handleShowPopup = async () => {
     setIsLoading(true);
     try {
-      let contact = contacts.find((c) => c.id === preselectedContactId);
+      let contact = contacts.find((c) => c.id === Number(preselectedContactId));
       if (!contact) {
         contact = await fetchContactById(preselectedContactId);
         if (contact) {
@@ -245,16 +238,15 @@ const Opportunities = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (editingOpportunityId) {
-      setShowUpdateModal(true); // Show confirmation for updates
+      setShowUpdateModal(true);
     } else {
-      await confirmUpdate(); // Directly create without confirmation
+      await confirmUpdate();
     }
   };
 
   const confirmUpdate = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const data = {
         title: formData.title || undefined,
         value: formData.value || undefined,
@@ -262,21 +254,20 @@ const Opportunities = () => {
         priority: formData.priority || undefined,
         progress: formData.progress || undefined,
         stage: formData.stage || undefined,
+        status: formData.status || undefined,
       };
       if (editingOpportunityId) {
-        await axios.put(`http://localhost:8080/api/opportunities/update/${editingOpportunityId}`, data, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.put(`/opportunities/update/${editingOpportunityId}`, data);
         setSuccessMessage(`Opportunity "${formData.title}" updated successfully!`);
       } else {
-        await axios.post('http://localhost:8080/api/opportunities/add', data, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.post('/opportunities/add', data);
         setSuccessMessage(`Opportunity "${formData.title}" created successfully!`);
       }
+      // Reset form and all related states
       debouncedSetShowForm(false);
       setShowUpdateModal(false);
-      setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION' });
+      setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+      setEditingOpportunityId(null); // Add this to clear edit mode
       setContactSearch('');
       setPreselectedContactName('');
       setShowAssignPopup(false);
@@ -300,10 +291,7 @@ const Opportunities = () => {
   const confirmDelete = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:8080/api/opportunities/delete/${opportunityToDelete.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/opportunities/delete/${opportunityToDelete.id}`);
       setSuccessMessage(`Opportunity "${opportunityToDelete.title}" deleted successfully!`);
       setShowDeleteModal(false);
       setOpportunityToDelete(null);
@@ -319,11 +307,7 @@ const Opportunities = () => {
   const handleIncrementProgress = async (id) => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8080/api/opportunities/increment-progress/${id}`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { increment: 10 }
-      });
+      await api.put(`/opportunities/increment-progress/${id}`, null, { params: { increment: 10 } });
       setSuccessMessage('Progress increased by 10% successfully!');
       await fetchInitialData();
     } catch (error) {
@@ -337,11 +321,7 @@ const Opportunities = () => {
   const handleDecrementProgress = async (id) => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8080/api/opportunities/decrement-progress/${id}`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { decrement: 10 }
-      });
+      await api.put(`/opportunities/decrement-progress/${id}`, null, { params: { decrement: 10 } });
       setSuccessMessage('Progress decreased by 10% successfully!');
       await fetchInitialData();
     } catch (error) {
@@ -355,16 +335,26 @@ const Opportunities = () => {
   const handleChangeStage = async (id, stage) => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8080/api/opportunities/change-stage/${id}`, null, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { stage }
-      });
+      await api.put(`/opportunities/change-stage/${id}`, null, { params: { stage } });
       setSuccessMessage(`Opportunity stage changed to "${stageMapping[stage]}" successfully!`);
       await fetchInitialData();
     } catch (error) {
       console.error('Failed to change stage:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to change stage. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    setIsLoading(true);
+    try {
+      await api.put(`/opportunities/update/${id}`, { status: newStatus });
+      setSuccessMessage(`Opportunity status updated to "${newStatus}" successfully!`);
+      await fetchInitialData();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      setErrorMessage('Failed to update status. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -390,9 +380,7 @@ const Opportunities = () => {
   const handleSelectExistingOpportunity = async (opportunityId) => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8080/api/opportunities/assign/${opportunityId}`, null, {
-        headers: { Authorization: `Bearer ${token}` },
+      await api.put(`/opportunities/assign/${opportunityId}`, null, {
         params: { contactId: Number(preselectedContactId) }
       });
       setSuccessMessage(`Contact assigned to opportunity successfully!`);
@@ -440,6 +428,11 @@ const Opportunities = () => {
           ? priorityOrder[a.priority] - priorityOrder[b.priority]
           : priorityOrder[b.priority] - priorityOrder[a.priority];
       }
+      if (key === 'status') {
+        return direction === 'asc'
+          ? a.status.localeCompare(b.status)
+          : b.status.localeCompare(a.status);
+      }
       return 0;
     });
 
@@ -449,6 +442,26 @@ const Opportunities = () => {
       }
       return stage;
     }));
+  };
+
+  const handleEdit = async (opp) => {
+    let contact = contacts.find((c) => c.id === opp.contact?.id);
+    if (!contact && opp.contact?.id) {
+      contact = await fetchContactById(opp.contact.id);
+      if (contact) {
+        setContacts((prev) => [...prev, contact]);
+        setFilteredContacts((prev) => [...prev, contact]);
+      }
+    }
+
+    setFormData({
+      ...opp,
+      contactId: opp.contact?.id || null,
+      status: opp.status || 'IN_PROGRESS',
+    });
+    setEditingOpportunityId(opp.id);
+    debouncedSetShowForm(true);
+    setContactSearch('');
   };
 
   // Custom Modal Component
@@ -513,33 +526,6 @@ const Opportunities = () => {
     );
   };
 
-  const handleEdit = async (opp) => {
-    let contact = contacts.find((c) => c.id === opp.contact?.id);
-    if (!contact && opp.contact?.id) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`/api/contacts/get/${opp.contact.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        contact = response.data;
-        if (contact) {
-          setContacts((prev) => [...prev, contact]);
-          setFilteredContacts((prev) => [...prev, contact]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch contact:', error);
-      }
-    }
-
-    setFormData({
-      ...opp,
-      contactId: opp.contact?.id || null,
-    });
-    setEditingOpportunityId(opp.id);
-    debouncedSetShowForm(true);
-    setContactSearch('');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-8 font-sans antialiased rounded-[12px] border border-gray-200">
       {/* Header Section */}
@@ -549,11 +535,16 @@ const Opportunities = () => {
           <p className="text-gray-600 mt-1 text-sm font-medium">Track and manage your opportunities with ease</p>
         </div>
         <button
-          onClick={() => debouncedSetShowForm(true)}
-          className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-full shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300/50"
-        >
-          <FaPlus className="mr-2" /> New Opportunity
-        </button>
+  onClick={() => {
+    setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+    setEditingOpportunityId(null); // Force create mode
+    setContactSearch('');
+    debouncedSetShowForm(true);
+  }}
+  className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-full shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300/50"
+>
+  <FaPlus className="mr-2" /> New Opportunity
+</button>
       </header>
 
       {/* Loading Spinner */}
@@ -773,13 +764,17 @@ const Opportunities = () => {
                           Progress {sortConfig.key === 'progress' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
                         </th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Stage</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 cursor-pointer" onClick={() => handleSort('status', stage.opportunities)}>
+                          Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? <FaSortUp className="inline ml-1" /> : <FaSortDown className="inline ml-1" />)}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Owner</th>
                         <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {stage.opportunities.length === 0 ? (
                         <tr>
-                          <td colSpan="7" className="px-4 py-6 text-center text-gray-500">No opportunities in this stage.</td>
+                          <td colSpan="9" className="px-4 py-6 text-center text-gray-500">No opportunities in this stage.</td>
                         </tr>
                       ) : (
                         stage.opportunities.map((opp) => (
@@ -817,6 +812,23 @@ const Opportunities = () => {
                                 ))}
                               </select>
                             </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">{opp.status}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                          <div className="flex items-center space-x-2">
+                            {opp.owner.profilePhotoUrl ? (
+                              <img
+                              src={`http://localhost:8080${opp.owner.profilePhotoUrl}`}
+                                alt={opp.owner.username || 'Owner'}
+                                className="h-6 w-6 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                                {getInitials(opp.owner.username)}
+                              </div>
+                            )}
+                            <span>{opp.owner.username || 'None'}</span>
+                          </div>
+                        </td>
                             <td className="px-4 py-3">
                               <div className="flex space-x-2">
                                 <button
@@ -841,61 +853,81 @@ const Opportunities = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 transition-all duration-500 animate-fadeIn">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-all duration-500 animate-fadeIn">
           {stages.map((stage) => (
             <div
               key={stage.id}
-              className={`${stage.color} p-4 rounded-xl shadow-lg border border-gray-100/50 min-h-[200px] transition-all duration-300 hover:shadow-xl flex flex-col`}
+              className={`relative overflow-hidden ${stage.color} p-6 rounded-2xl shadow-xl border border-gray-200/50 min-h-[220px] transition-all duration-300 hover:shadow-2xl flex flex-col backdrop-blur-md bg-opacity-75`}
             >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800 tracking-tight">{stage.name}</h2>
-                <span className="bg-gray-800 text-white text-xs font-medium px-2 py-1 rounded-full shadow-inner">
+                <h2 className="text-lg font-bold text-gray-900 tracking-tight">{stage.name}</h2>
+                <span className="bg-gray-900 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
                   {stage.opportunities.length}
                 </span>
               </div>
-              <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-gray-100 flex-1">
+              <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-gray-200 flex-1">
                 {stage.opportunities.map((opp) => (
                   <div
                     key={opp.id}
-                    className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg w-full overflow-hidden"
+                    className="relative bg-white p-5 rounded-xl shadow-lg border border-gray-300/50 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl w-full overflow-hidden"
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-md font-semibold text-gray-800 tracking-tight truncate w-[80%]">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-md font-semibold text-gray-900 tracking-tight truncate w-[75%]">
                         {opp.title}
                       </h3>
                       <button
                         onClick={() => setExpandedOpportunityId(opp.id)}
-                        className="p-1 bg-gray-200 rounded-full hover:bg-gray-300 transition-all duration-200 flex-shrink-0"
+                        className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-all duration-200"
                       >
-                        <FaExpand size={16} />
+                        <FaExpand size={16} className="text-gray-600" />
                       </button>
                     </div>
-                    <p className="text-sm text-gray-600 font-medium truncate mb-2">
+                    <p className="text-sm text-gray-700 font-medium truncate mb-3">
                       Contact: {opp.contact?.name || 'None'}
                     </p>
-                    <div className="flex items-center mb-2">
-                      <span className="text-sm text-gray-600 font-medium mr-2">Priority:</span>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <p className="text-sm text-gray-700 font-medium">Owner:</p>
+                      {opp.owner?.profilePhotoUrl ? (
+                        <img
+                          src={`http://localhost:8080${opp.owner.profilePhotoUrl}`}
+                          alt={opp.owner?.username || 'Owner'}
+                          className="h-6 w-6 rounded-full object-cover border border-gray-300 shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
+                          {getInitials(opp.owner?.username)}
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-800 font-semibold">{opp.owner?.username || 'None'}</p>
+                    </div>
+                    <div className="flex items-center mb-3">
+                      <span className="text-sm text-gray-700 font-semibold mr-2">Priority:</span>
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full shadow-sm ${priorityColors[opp.priority]}`}
+                        className={`px-3 py-1 text-xs font-semibold rounded-full shadow-sm ${priorityColors[opp.priority]}`}
                       >
                         {priorityMapping[opp.priority]}
                       </span>
                     </div>
-                    <div className="flex items-center mb-2">
-                      <span className="text-sm text-gray-600 font-medium mr-2">Progress:</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-20 bg-gray-200/50 rounded-full h-2 shadow-inner flex-shrink-0">
+                    <div className="flex items-center mb-3">
+                      <span className="text-sm text-gray-700 font-semibold mr-2">Progress:</span>
+                      <div className="flex items-center space-x-2 w-full">
+                        <div className="w-full bg-gray-200 rounded-full h-2 shadow-inner overflow-hidden">
                           <div
                             className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md"
                             style={{ width: `${opp.progress}%` }}
                           />
                         </div>
-                        <span className="text-xs text-indigo-600 whitespace-nowrap">{opp.progress}%</span>
+                        <span className="text-xs text-indigo-600 font-semibold">{opp.progress}%</span>
                       </div>
+                      
                     </div>
-                    <p className="text-xs text-gray-500 font-medium truncate">
+                    <p className="text-sm text-gray-700 font-medium pb-2">
+                      Status: <span className={`${opp.status === 'WON' ? 'text-green-600' : opp.status === 'LOST' ? 'text-red-600' : 'text-yellow-500'}`}>{opp.status.toUpperCase()}</span>
+                    </p>
+                    <p className="text-xs text-gray-500 font-medium truncate mb-2">
                       Created: {new Date(opp.createdAt).toLocaleDateString()}
                     </p>
+                 
                   </div>
                 ))}
               </div>
@@ -973,123 +1005,135 @@ const Opportunities = () => {
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 w-full max-w-md">
                 <label className="block text-sm font-medium text-gray-700">Contact</label>
-                <div className="relative" ref={dropdownRef}>
+                <div className="relative">
                   {preselectedContactId && !editingOpportunityId ? (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
-                      <span>
+                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center overflow-hidden">
+                      <span className="truncate group relative">
                         {preselectedContactName || 'Loading...'}
+                        <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                          {preselectedContactName}
+                        </span>
                       </span>
                     </div>
                   ) : (
                     <>
-                    <div
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer flex justify-between items-center"
-                  onClick={() => setShowContactDropdown(!showContactDropdown)}
-                >
-                  <span className={formData.contactId ? 'text-gray-700 flex items-center space-x-3' : 'text-gray-400'}>
-                    {formData.contactId ? (
-                      <>
-                        {contacts.find((contact) => contact.id === formData.contactId)?.photoUrl ? (
-                          <img
-                            src={`${axios.defaults.baseURL}${contacts.find((contact) => contact.id === formData.contactId)?.photoUrl}`}
-                            alt={contacts.find((contact) => contact.id === formData.contactId)?.name}
-                            className="h-8 w-8 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold"
-                          >
-                            {getInitials(contacts.find((contact) => contact.id === formData.contactId)?.name)}
-                          </div>
-                        )}
-                        <span className="ml-2">
-                          {contacts.find((contact) => contact.id === formData.contactId)?.name || 'Select a contact'}
-                          {contacts.find((contact) => contact.id === formData.contactId)?.company?.name 
-                            ? ` (${contacts.find((contact) => contact.id === formData.contactId)?.company.name})` 
-                            : ''}
+                      <div
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+                          focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer 
+                          flex justify-between items-center min-w-0"
+                        onClick={() => setShowContactDropdown(!showContactDropdown)}
+                      >
+                        <span className={formData.contactId ? 'text-gray-700 flex items-center space-x-3 min-w-0' : 'text-gray-400 truncate'}>
+                          {formData.contactId ? (
+                            <>
+                              {contacts.find((contact) => contact.id === formData.contactId)?.photoUrl ? (
+                                <img
+                                  src={`http://localhost:8080${contacts.find((contact) => contact.id === formData.contactId)?.photoUrl}`}
+                                  alt={contacts.find((contact) => contact.id === formData.contactId)?.name}
+                                  className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div
+                                  className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                                >
+                                  {getInitials(contacts.find((contact) => contact.id === formData.contactId)?.name)}
+                                </div>
+                              )}
+                              <span className="ml-2 truncate group relative">
+                                {contacts.find((contact) => contact.id === formData.contactId)?.name || 'Select a contact'}
+                                <span className="text-xs">
+                                  {contacts.find((contact) => contact.id === formData.contactId)?.company?.name 
+                                    ? ` (${contacts.find((contact) => contact.id === formData.contactId)?.company.name})` 
+                                    : ''}
+                                </span>
+                                <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                  {contacts.find((contact) => contact.id === formData.contactId)?.name}
+                                </span>
+                              </span>
+                            </>
+                          ) : (
+                            'Select a contact'
+                          )}
                         </span>
-                      </>
-                    ) : (
-                      'Select a contact'
-                    )}
-                  </span>
-                  <svg
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                  </svg>
-                </div>
-
-               {showContactDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  <div className="p-2 border-b border-gray-200">
-                    <div className="relative">
-                      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={contactSearch}
-                        onChange={handleContactSearch}
-                        className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg 
-                          focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                        placeholder="Search contacts..."
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    <div
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500"
-                      onClick={() => {
-                        setFormData({ ...formData, contactId: null });
-                        setShowContactDropdown(false);
-                        setContactSearch('');
-                      }}
-                    >
-                      (None)
-                    </div>
-                    {filteredContacts.length > 0 ? (
-                      filteredContacts.map((contact) => (
-                        <div
-                          key={contact.id}
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3"
-                          onClick={() => {
-                            setFormData({ ...formData, contactId: contact.id });
-                            setShowContactDropdown(false);
-                            setContactSearch('');
-                          }}
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
                         >
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden"
-                            style={{ backgroundColor: contact.photoUrl ? "transparent" : getRandomColor() }}
-                          >
-                            {contact.photoUrl ? (
-                              <img
-                                src={`${axios.defaults.baseURL}${contact.photoUrl}`}
-                                alt={contact.name}
-                                className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+
+                      {showContactDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-200">
+                            <div className="relative">
+                              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                              <input
+                                type="text"
+                                value={contactSearch}
+                                onChange={handleContactSearch}
+                                className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg 
+                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                                placeholder="Search contacts..."
+                                autoFocus
                               />
+                            </div>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            <div
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500 truncate"
+                              onClick={() => {
+                                setFormData({ ...formData, contactId: null });
+                                setShowContactDropdown(false);
+                                setContactSearch('');
+                              }}
+                            >
+                              (None)
+                            </div>
+                            {filteredContacts.length > 0 ? (
+                              filteredContacts.map((contact) => (
+                                <div
+                                  key={contact.id}
+                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3 min-w-0"
+                                  onClick={() => {
+                                    setFormData({ ...formData, contactId: contact.id });
+                                    setShowContactDropdown(false);
+                                    setContactSearch('');
+                                  }}
+                                >
+                                  <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
+                                    style={{ backgroundColor: contact.photoUrl ? "transparent" : getRandomColor() }}
+                                  >
+                                    {contact.photoUrl ? (
+                                      <img
+                                        src={`http://localhost:8080${contact.photoUrl}`}
+                                        alt={contact.name}
+                                        className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
+                                      />
+                                    ) : (
+                                      getInitials(contact.name)
+                                    )}
+                                  </div>
+                                  <span className="text-gray-900 font-medium truncate group relative">
+                                    {contact.name} <span className="text-xs">{contact.company?.name ? `(${contact.company.name})` : ''}</span>
+                                    <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                      {contact.name}
+                                    </span>
+                                  </span>
+                                </div>
+                              ))
                             ) : (
-                              getInitials(contact.name)
+                              <div className="px-4 py-2 text-gray-500">No contacts found</div>
                             )}
                           </div>
-                          <span className="text-gray-900 font-medium">
-                            {contact.name} {contact.company?.name ? `(${contact.company.name})` : ''}
-                          </span>
                         </div>
-                      ))
-                    ) : (
-                      <div className="px-4 py-2 text-gray-500">No contacts found</div>
-                    )}
-                  </div>
-                </div>
-              )}
+                      )}
                     </>
                   )}
                 </div>
@@ -1110,7 +1154,7 @@ const Opportunities = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="block text-sm font-medium text-gray-depend">Priority</label>
+                <label className="block text-sm font-medium text-gray-700">Priority</label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
@@ -1156,7 +1200,11 @@ const Opportunities = () => {
                 <label className="block text-sm font-medium text-gray-700">Stage</label>
                 <select
                   value={formData.stage}
-                  onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
+                  onChange={(e) => {
+                    const stage = e.target.value;
+                    const status = stage === 'CLOSED' ? formData.status : 'IN_PROGRESS';
+                    setFormData({ ...formData, stage, status });
+                  }}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
                     focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 >
@@ -1166,15 +1214,42 @@ const Opportunities = () => {
                 </select>
               </div>
 
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
+                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={formData.stage !== 'CLOSED'}
+                >
+                  {formData.stage === 'CLOSED' ? (
+                    <>
+                      <option value="WON">Won</option>
+                      <option value="LOST">Lost</option>
+                    </>
+                  ) : (
+                    <option value="IN_PROGRESS">In Progress</option>
+                  )}
+                </select>
+              </div>
+
               <div className="md:col-span-2 flex justify-end space-x-4">
                 <button
-                  type="button"
-                  onClick={preselectedContactId && !editingOpportunityId ? handleBackToAssignPopup : () => debouncedSetShowForm(false)}
-                  className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full 
-                    hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
-                >
-                  Cancel
-                </button>
+                type="button"
+                onClick={() => {
+                  debouncedSetShowForm(false);
+                  setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+                  setEditingOpportunityId(null); // Reset edit mode
+                  setContactSearch('');
+                  setPreselectedContactName('');
+                  if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full 
+                  hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
+              >
+                Cancel
+              </button>
                 <button
                   type="submit"
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full 
@@ -1216,6 +1291,7 @@ const Opportunities = () => {
               onChangeStage={(newStage) => handleChangeStage(expandedOpportunityId, newStage)}
               onIncrementProgress={() => handleIncrementProgress(expandedOpportunityId)}
               onDecrementProgress={() => handleDecrementProgress(expandedOpportunityId)}
+              onUpdateStatus={(newStatus) => handleUpdateStatus(expandedOpportunityId, newStatus)}
             />
           </div>
         </div>
@@ -1247,9 +1323,13 @@ const Opportunities = () => {
 };
 
 // Opportunity Details Component
-const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeStage, onIncrementProgress, onDecrementProgress }) => {
+const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeStage, onIncrementProgress, onDecrementProgress, onUpdateStatus }) => {
   if (!opportunity) return null;
-
+  const getInitials = (name = '') => {
+    if (!name) return '??';
+    const names = name.split(' ');
+    return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+  };
   const formatCurrency = (value) => {
     const formattedNumber = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
     return `${formattedNumber} TND`;
@@ -1278,17 +1358,16 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
     <div>
       {/* Header with Title and Close Button */}
       <div className="flex justify-between items-start mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">
-          {opportunity.title}
-        </h2>
-        <button
-          onClick={onClose}
-          className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
-        >
-          <FaTimes className="w-5 h-5" />
-        </button>
-      </div>
-
+  <h2 className="text-2xl font-bold text-gray-800 break-words whitespace-pre-wrap max-w-[30ch]">
+    {opportunity.title}
+  </h2>
+  <button
+    onClick={onClose}
+    className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
+  >
+    <FaTimes className="w-5 h-5" />
+  </button>
+</div>
       {/* Opportunity Details */}
       <div className="space-y-4 text-gray-700">
         {/* Value */}
@@ -1320,6 +1399,28 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
           </span>
         </div>
 
+        {/* Owner */}
+        <div className="flex items-center space-x-3">
+          <FaUser className="text-gray-400" />
+          <div className="flex items-center space-x-2">
+          <span className="font-medium">Owner: </span>
+            {opportunity.owner? (
+              <img
+                src={`http://localhost:8080${opportunity.owner.profilePhotoUrl}`}
+                alt={opportunity.owner.username || 'Owner'}
+                className="h-7 w-7 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-4 w-4 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                {getInitials(opportunity.owner?.username)}
+              </div>
+            )}
+            <span>
+              {opportunity.owner.username || 'None'}
+            </span>
+          </div>
+        </div>
+
         {/* Stage */}
         <div className="flex items-center space-x-3">
           <FaList className="text-gray-400" />
@@ -1334,6 +1435,33 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
                 <option key={key} value={key}>{stageMapping[key]}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center space-x-3">
+          <FaTag className="text-gray-400" />
+          <div>
+            <span className="font-medium">Status: </span>
+            <span className="text-gray-800">{opportunity.status}</span>
+            {opportunity.stage === 'CLOSED' && (
+              <div className="mt-2 flex space-x-2">
+                <button
+                  onClick={() => onUpdateStatus('WON')}
+                  className="px-3 py-1 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 disabled:bg-gray-400"
+                  disabled={opportunity.status === 'WON'}
+                >
+                  Mark as Won
+                </button>
+                <button
+                  onClick={() => onUpdateStatus('LOST')}
+                  className="px-3 py-1 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 disabled:bg-gray-400"
+                  disabled={opportunity.status === 'LOST'}
+                >
+                  Mark as Lost
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1375,20 +1503,34 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
       </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 mt-6">
-        <button
-          onClick={onEdit}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 flex items-center"
-        >
-          <FaEdit className="mr-2" /> Edit
-        </button>
-        <button
-          onClick={onDelete}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-all duration-200 flex items-center"
-        >
-          <FaTrash className="mr-2" /> Delete
-        </button>
-      </div>
+      <div className="flex justify-end space-x-4 mt-8">
+            {/* Edit Button */}
+            <button
+              onClick={onEdit}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg shadow-md hover:from-indigo-700 hover:to-indigo-800 focus:ring-4 focus:ring-indigo-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
+            >
+              <FaEdit className="w-4 h-4" />
+              <span>Edit</span>
+            </button>
+
+            {/* Delete Button */}
+            <button
+              onClick={onDelete}
+              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg shadow-md hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
+            >
+              <FaTrash className="w-4 h-4" />
+              <span>Delete</span>
+            </button>
+
+            {/* Cancel Button */}
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-lg shadow-md hover:from-gray-300 hover:to-gray-400 focus:ring-4 focus:ring-gray-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
+            >
+              <FaTimes className="w-4 h-4" />
+              <span>Cancel</span>
+            </button>
+          </div>
     </div>
   );
 };

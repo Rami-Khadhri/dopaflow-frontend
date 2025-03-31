@@ -147,7 +147,6 @@ const NotificationDropdown = () => {
     if (isOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
-
   return (
     <div style={{ marginRight: '200px', marginTop: '-22px' }}>
       <button
@@ -193,7 +192,12 @@ const NotificationDropdown = () => {
 
                     {/* Notification Content */}
                     <div className="ml-3 flex-1">
-                      <p className={`text-sm ${notification.isRead ? 'text-gray-600' : 'text-gray-800 font-medium'}`}>
+                      <p
+                        className={`text-sm ${
+                          notification.isRead ? 'text-gray-600' : 'text-gray-800 font-medium'
+                        } max-w-[240px] truncate`}
+                        title={notification.message} // Tooltip for full message on hover
+                      >
                         {notification.message}
                       </p>
                       <p className="text-xs text-gray-400">{getTimeAgo(notification.timestamp)}</p>

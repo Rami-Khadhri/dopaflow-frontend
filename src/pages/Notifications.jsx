@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaBell, FaKey, FaShieldAlt, FaChevronRight, FaFilter, FaSearch, FaSort, FaUserPlus, FaUserMinus, FaAddressBook, FaTasks, FaEnvelope, FaTicketAlt, FaCheckCircle, FaSyncAlt } from 'react-icons/fa';
+import { FaBell, FaKey, FaShieldAlt, FaChevronRight, FaFilter, FaSearch, FaSort, FaUserPlus, FaUserMinus, FaAddressBook, FaTasks, FaEnvelope, FaTicketAlt, FaCheckCircle, FaSyncAlt, FaTrash, FaEllipsisV } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -65,11 +65,12 @@ const Notifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    status: 'all', // 'all', 'unread', 'read'
-    type: 'all',   // 'all' or specific NotificationType
+    status: 'all',
+    type: 'all',
     search: '',
-    sort: 'desc',  // 'asc' or 'desc' by timestamp
+    sort: 'desc',
   });
+  const [openMenuId, setOpenMenuId] = useState(null); // Track which menu is open
   const navigate = useNavigate();
 
   const fetchNotifications = async () => {
@@ -116,6 +117,35 @@ const Notifications = () => {
     }
   };
 
+  const deleteNotification = async (notificationId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      await axios.delete(`http://localhost:8080/api/notifications/${notificationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => prev - (notifications.find(n => n.id === notificationId && !n.isRead) ? 1 : 0));
+      setOpenMenuId(null); // Close the menu after deletion
+    } catch (error) {
+      console.error('Failed to delete notification:', error.response?.data || error.message);
+    }
+  };
+
+  const deleteAllNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      await axios.delete('http://localhost:8080/api/notifications/delete-all', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to delete all notifications:', error.response?.data || error.message);
+    }
+  };
+
   const handleRedirect = (link) => {
     if (!link) return;
     const [path, param1] = link.split('/').filter(Boolean);
@@ -133,6 +163,11 @@ const Notifications = () => {
     } else {
       navigate(link);
     }
+    setOpenMenuId(null); // Close the menu after redirect
+  };
+
+  const toggleMenu = (notificationId) => {
+    setOpenMenuId(openMenuId === notificationId ? null : notificationId);
   };
 
   useEffect(() => {
@@ -141,27 +176,18 @@ const Notifications = () => {
 
   const applyFilters = (notifs) => {
     let filtered = [...notifs];
-
-    // Status Filter
     if (filters.status === 'unread') filtered = filtered.filter(n => !n.isRead);
     if (filters.status === 'read') filtered = filtered.filter(n => n.isRead);
-
-    // Type Filter
     if (filters.type !== 'all') filtered = filtered.filter(n => n.type === filters.type);
-
-    // Search Filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(n => n.message.toLowerCase().includes(searchLower));
     }
-
-    // Sort
     filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp);
       const dateB = new Date(b.timestamp);
       return filters.sort === 'desc' ? dateB - dateA : dateA - dateB;
     });
-
     return filtered;
   };
 
@@ -196,14 +222,26 @@ const Notifications = () => {
         <h1 className="text-4xl font-extrabold text-gray-800 flex items-center">
           <FaBell className="mr-3 text-teal-500 animate-pulse" /> Notification Timeline
         </h1>
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-full hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 shadow-lg"
-          >
-            Mark All as Read
-          </button>
-        )}
+        <div className="ml-10">
+        <div className="flex space-x-4">
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="px-5 py-2 bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-full hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 shadow-lg"
+            >
+              Mark All as Read
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              onClick={deleteAllNotifications}
+              className="px-5 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg flex items-center"
+            >
+              <FaTrash className="mr-2" /> Delete All
+            </button>
+          )}
+        </div>
+      </div>
       </div>
 
       {/* Filters */}
@@ -273,30 +311,58 @@ const Notifications = () => {
                       key={notification.id}
                       className={`p-4 bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
                         notification.isRead ? 'opacity-80' : 'border-l-4 border-teal-500'
-                      } animate-slideIn`}
+                      } animate-slideIn relative`}
                       onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-start space-x-3">
                         <div className={`flex-shrink-0 w-10 h-10 rounded-full ${color} flex items-center justify-center`}>
                           {icon}
                         </div>
                         <div className="flex-1">
-                          <p className={`text-base font-medium ${notification.isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                          <p
+                            className={`text-base font-medium ${
+                              notification.isRead ? 'text-gray-600' : 'text-gray-800'
+                            } max-w-[900px] break-words`}
+                          >
                             {notification.message}
                           </p>
                           <p className="text-xs text-gray-500">{label} • {getTimeAgo(notification.timestamp)}</p>
                         </div>
-                        {notification.link && (
+                        <div className="relative">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRedirect(notification.link);
+                              toggleMenu(notification.id);
                             }}
-                            className="flex-shrink-0 p-1 bg-teal-100 text-teal-600 rounded-full hover:bg-teal-200 transition-all duration-200"
+                            className="p-1 text-gray-600 hover:text-gray-800"
                           >
-                            <FaChevronRight className="w-4 h-4" />
+                            <FaEllipsisV className="w-4 h-4" />
                           </button>
-                        )}
+                          {openMenuId === notification.id && (
+                            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
+                              {notification.link && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRedirect(notification.link);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <FaChevronRight className="inline mr-2" /> Go to Link
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification.id);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                <FaTrash className="inline mr-2" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -319,30 +385,58 @@ const Notifications = () => {
                       key={notification.id}
                       className={`p-4 bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
                         notification.isRead ? 'opacity-80' : 'border-l-4 border-teal-500'
-                      } animate-slideIn`}
+                      } animate-slideIn relative`}
                       onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-start space-x-3">
                         <div className={`flex-shrink-0 w-10 h-10 rounded-full ${color} flex items-center justify-center`}>
                           {icon}
                         </div>
                         <div className="flex-1">
-                          <p className={`text-base font-medium ${notification.isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                          <p
+                            className={`text-base font-medium ${
+                              notification.isRead ? 'text-gray-600' : 'text-gray-800'
+                            } max-w-[900px] break-words`}
+                          >
                             {notification.message}
                           </p>
                           <p className="text-xs text-gray-500">{label} • {getTimeAgo(notification.timestamp)}</p>
                         </div>
-                        {notification.link && (
+                        <div className="relative">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRedirect(notification.link);
+                              toggleMenu(notification.id);
                             }}
-                            className="flex-shrink-0 p-1 bg-teal-100 text-teal-600 rounded-full hover:bg-teal-200 transition-all duration-200"
+                            className="p-1 text-gray-600 hover:text-gray-800"
                           >
-                            <FaChevronRight className="w-4 h-4" />
+                            <FaEllipsisV className="w-4 h-4" />
                           </button>
-                        )}
+                          {openMenuId === notification.id && (
+                            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
+                              {notification.link && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRedirect(notification.link);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <FaChevronRight className="inline mr-2" /> Go to Link
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification.id);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                <FaTrash className="inline mr-2" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -365,30 +459,58 @@ const Notifications = () => {
                       key={notification.id}
                       className={`p-4 bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 ${
                         notification.isRead ? 'opacity-80' : 'border-l-4 border-teal-500'
-                      } animate-slideIn`}
+                      } animate-slideIn relative`}
                       onClick={() => !notification.isRead && markNotificationAsRead(notification.id)}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-start space-x-3">
                         <div className={`flex-shrink-0 w-10 h-10 rounded-full ${color} flex items-center justify-center`}>
                           {icon}
                         </div>
                         <div className="flex-1">
-                          <p className={`text-base font-medium ${notification.isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                          <p
+                            className={`text-base font-medium ${
+                              notification.isRead ? 'text-gray-600' : 'text-gray-800'
+                            } max-w-[900px] break-words`}
+                          >
                             {notification.message}
                           </p>
                           <p className="text-xs text-gray-500">{label} • {getTimeAgo(notification.timestamp)}</p>
                         </div>
-                        {notification.link && (
+                        <div className="relative">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleRedirect(notification.link);
+                              toggleMenu(notification.id);
                             }}
-                            className="flex-shrink-0 p-1 bg-teal-100 text-teal-600 rounded-full hover:bg-teal-200 transition-all duration-200"
+                            className="p-1 text-gray-600 hover:text-gray-800"
                           >
-                            <FaChevronRight className="w-4 h-4" />
+                            <FaEllipsisV className="w-4 h-4" />
                           </button>
-                        )}
+                          {openMenuId === notification.id && (
+                            <div className="absolute right-0 mt-2 w-32 bg-white rounded-md shadow-lg z-10">
+                              {notification.link && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRedirect(notification.link);
+                                  }}
+                                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  <FaChevronRight className="inline mr-2" /> Go to Link
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteNotification(notification.id);
+                                }}
+                                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                <FaTrash className="inline mr-2" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

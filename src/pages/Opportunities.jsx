@@ -3,9 +3,10 @@ import {
   FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
   FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt
 } from 'react-icons/fa';
-import { json, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import debounce from 'lodash/debounce';
 import api from '../utils/api';
+import LoadingIndicator from '../pages/LoadingIndicator';
 
 const Opportunities = () => {
   const location = useLocation();
@@ -55,6 +56,10 @@ const Opportunities = () => {
   const formRef = useRef(null);
   const dropdownRef = useRef(null);
 
+  // Temporary storage for fetched data
+  const [cachedOpportunities, setCachedOpportunities] = useState(null);
+  const [cachedContacts, setCachedContacts] = useState(null);
+
   const stageMapping = {
     PROSPECTION: 'Prospection',
     QUALIFICATION: 'Qualification',
@@ -103,18 +108,15 @@ const Opportunities = () => {
   }, []);
 
   const debouncedFetchContacts = useMemo(
-    () => debounce(async (query) => {
+    () => debounce((query) => {
       if (!query) {
         setFilteredContacts(contacts);
         return;
       }
-      try {
-        const response = await api.get('/contacts/search', { params: { query, size: 50 } });
-        setFilteredContacts(response.data.content || []);
-      } catch (error) {
-        console.error('Failed to search contacts:', error);
-        setErrorMessage('Failed to search contacts. Please try again.');
-      }
+      const filtered = contacts.filter((contact) =>
+        contact.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredContacts(filtered);
     }, 300),
     [contacts]
   );
@@ -134,13 +136,21 @@ const Opportunities = () => {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      const [opportunitiesRes, contactsRes] = await Promise.all([
-        api.get('/opportunities/all', { params: { size: 50 } }),
-        api.get('/contacts/all', { params: { size: 50 } }),
-      ]);
-      const opportunities = opportunitiesRes.data.content || [];
+      let opportunities = cachedOpportunities;
+      let fetchedContacts = cachedContacts;
+
+      if (!opportunities || !fetchedContacts) {
+        const [opportunitiesRes, contactsRes] = await Promise.all([
+          api.get('/opportunities/all', { params: { size: 50 } }),
+          api.get('/contacts/all', { params: { size: 50 } }),
+        ]);
+        opportunities = opportunitiesRes.data.content || [];
+        fetchedContacts = contactsRes.data.content || [];
+        setCachedOpportunities(opportunities);
+        setCachedContacts(fetchedContacts);
+      }
+
       setAllOpportunities(opportunities);
-      const fetchedContacts = contactsRes.data.content || [];
       setContacts(fetchedContacts);
       setFilteredContacts(fetchedContacts);
       applyFilters(opportunities);
@@ -160,9 +170,15 @@ const Opportunities = () => {
   };
 
   const fetchContactById = async (contactId) => {
+    if (contacts.find((c) => c.id === Number(contactId))) {
+      return contacts.find((c) => c.id === Number(contactId));
+    }
     try {
       const response = await api.get(`/contacts/get/${contactId}`);
-      return response.data;
+      const contact = response.data;
+      setContacts((prev) => [...prev, contact]);
+      setFilteredContacts((prev) => [...prev, contact]);
+      return contact;
     } catch (error) {
       console.error('Failed to fetch contact by ID:', error);
       setErrorMessage('Failed to load contact. Please try again.');
@@ -183,8 +199,6 @@ const Opportunities = () => {
       if (!contact) {
         contact = await fetchContactById(preselectedContactId);
         if (contact) {
-          setContacts((prev) => [...prev, contact]);
-          setFilteredContacts((prev) => [...prev, contact]);
           setPreselectedContactName(contact.name);
         }
       } else {
@@ -212,7 +226,7 @@ const Opportunities = () => {
     setShowAssignPopup(true);
   };
 
-  const getRandomColor = () => '#b0b0b0';
+  const getColor = () => '#b0b0b0';
 
   const applyFilters = (opportunities) => {
     let filtered = [...opportunities];
@@ -224,9 +238,7 @@ const Opportunities = () => {
     const grouped = filtered.reduce((acc, opp) => {
       const stageName = stageMapping[opp.stage];
       if (stageName) {
-        if (!acc[stageName]) {
-          acc[stageName] = [];
-        }
+        if (!acc[stageName]) acc[stageName] = [];
         acc[stageName].push(opp);
       }
       return acc;
@@ -256,24 +268,33 @@ const Opportunities = () => {
         stage: formData.stage || undefined,
         status: formData.status || undefined,
       };
+      let updatedOpportunity;
       if (editingOpportunityId) {
-        await api.put(`/opportunities/update/${editingOpportunityId}`, data);
+        updatedOpportunity = (await api.put(`/opportunities/update/${editingOpportunityId}`, data)).data;
         setSuccessMessage(`Opportunity "${formData.title}" updated successfully!`);
       } else {
-        await api.post('/opportunities/add', data);
+        updatedOpportunity = (await api.post('/opportunities/add', data)).data;
         setSuccessMessage(`Opportunity "${formData.title}" created successfully!`);
       }
-      // Reset form and all related states
+
+      // Update local state instead of refetching
+      setAllOpportunities((prev) =>
+        editingOpportunityId
+          ? prev.map((opp) => (opp.id === editingOpportunityId ? updatedOpportunity : opp))
+          : [...prev, updatedOpportunity]
+      );
+      applyFilters(editingOpportunityId ? allOpportunities.map((opp) => (opp.id === editingOpportunityId ? updatedOpportunity : opp)) : [...allOpportunities, updatedOpportunity]);
+
+      // Reset form and states
       debouncedSetShowForm(false);
       setShowUpdateModal(false);
       setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
-      setEditingOpportunityId(null); // Add this to clear edit mode
+      setEditingOpportunityId(null);
       setContactSearch('');
       setPreselectedContactName('');
       setShowAssignPopup(false);
       setShowExistingOpportunities(false);
       navigate('/opportunities', { replace: true });
-      await fetchInitialData();
     } catch (error) {
       console.error('Failed to save opportunity:', error);
       setErrorMessage('Failed to save opportunity. Please try again.');
@@ -293,9 +314,10 @@ const Opportunities = () => {
     try {
       await api.delete(`/opportunities/delete/${opportunityToDelete.id}`);
       setSuccessMessage(`Opportunity "${opportunityToDelete.title}" deleted successfully!`);
+      setAllOpportunities((prev) => prev.filter((opp) => opp.id !== opportunityToDelete.id));
+      applyFilters(allOpportunities.filter((opp) => opp.id !== opportunityToDelete.id));
       setShowDeleteModal(false);
       setOpportunityToDelete(null);
-      await fetchInitialData();
     } catch (error) {
       console.error('Failed to delete opportunity:', error);
       setErrorMessage('Failed to delete opportunity. Please try again.');
@@ -307,9 +329,10 @@ const Opportunities = () => {
   const handleIncrementProgress = async (id) => {
     setIsLoading(true);
     try {
-      await api.put(`/opportunities/increment-progress/${id}`, null, { params: { increment: 10 } });
+      const updatedOpportunity = (await api.put(`/opportunities/increment-progress/${id}`, null, { params: { increment: 10 } })).data;
       setSuccessMessage('Progress increased by 10% successfully!');
-      await fetchInitialData();
+      setAllOpportunities((prev) => prev.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
+      applyFilters(allOpportunities.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
     } catch (error) {
       console.error('Failed to increment progress:', error);
       setErrorMessage('Failed to increment progress. Please try again.');
@@ -321,9 +344,10 @@ const Opportunities = () => {
   const handleDecrementProgress = async (id) => {
     setIsLoading(true);
     try {
-      await api.put(`/opportunities/decrement-progress/${id}`, null, { params: { decrement: 10 } });
+      const updatedOpportunity = (await api.put(`/opportunities/decrement-progress/${id}`, null, { params: { decrement: 10 } })).data;
       setSuccessMessage('Progress decreased by 10% successfully!');
-      await fetchInitialData();
+      setAllOpportunities((prev) => prev.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
+      applyFilters(allOpportunities.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
     } catch (error) {
       console.error('Failed to decrement progress:', error);
       setErrorMessage('Failed to decrement progress. Please try again.');
@@ -335,9 +359,10 @@ const Opportunities = () => {
   const handleChangeStage = async (id, stage) => {
     setIsLoading(true);
     try {
-      await api.put(`/opportunities/change-stage/${id}`, null, { params: { stage } });
+      const updatedOpportunity = (await api.put(`/opportunities/change-stage/${id}`, null, { params: { stage } })).data;
       setSuccessMessage(`Opportunity stage changed to "${stageMapping[stage]}" successfully!`);
-      await fetchInitialData();
+      setAllOpportunities((prev) => prev.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
+      applyFilters(allOpportunities.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
     } catch (error) {
       console.error('Failed to change stage:', error);
       setErrorMessage(error.response?.data?.message || 'Failed to change stage. Please try again.');
@@ -349,9 +374,10 @@ const Opportunities = () => {
   const handleUpdateStatus = async (id, newStatus) => {
     setIsLoading(true);
     try {
-      await api.put(`/opportunities/update/${id}`, { status: newStatus });
+      const updatedOpportunity = (await api.put(`/opportunities/update/${id}`, { status: newStatus })).data;
       setSuccessMessage(`Opportunity status updated to "${newStatus}" successfully!`);
-      await fetchInitialData();
+      setAllOpportunities((prev) => prev.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
+      applyFilters(allOpportunities.map((opp) => (opp.id === id ? updatedOpportunity : opp)));
     } catch (error) {
       console.error('Failed to update status:', error);
       setErrorMessage('Failed to update status. Please try again.');
@@ -380,14 +406,15 @@ const Opportunities = () => {
   const handleSelectExistingOpportunity = async (opportunityId) => {
     setIsLoading(true);
     try {
-      await api.put(`/opportunities/assign/${opportunityId}`, null, {
+      const updatedOpportunity = (await api.put(`/opportunities/assign/${opportunityId}`, null, {
         params: { contactId: Number(preselectedContactId) }
-      });
+      })).data;
       setSuccessMessage(`Contact assigned to opportunity successfully!`);
+      setAllOpportunities((prev) => prev.map((opp) => (opp.id === opportunityId ? updatedOpportunity : opp)));
+      applyFilters(allOpportunities.map((opp) => (opp.id === opportunityId ? updatedOpportunity : opp)));
       setShowExistingOpportunities(false);
       setPreselectedContactName('');
       navigate('/opportunities', { replace: true });
-      await fetchInitialData();
     } catch (error) {
       console.error('Failed to assign contact to existing opportunity:', error);
       setErrorMessage('Failed to assign contact to opportunity. Please try again.');
@@ -448,10 +475,6 @@ const Opportunities = () => {
     let contact = contacts.find((c) => c.id === opp.contact?.id);
     if (!contact && opp.contact?.id) {
       contact = await fetchContactById(opp.contact.id);
-      if (contact) {
-        setContacts((prev) => [...prev, contact]);
-        setFilteredContacts((prev) => [...prev, contact]);
-      }
     }
 
     setFormData({
@@ -462,6 +485,7 @@ const Opportunities = () => {
     setEditingOpportunityId(opp.id);
     debouncedSetShowForm(true);
     setContactSearch('');
+    setExpandedOpportunityId(null); // Close expanded view
   };
 
   // Custom Modal Component
@@ -528,31 +552,23 @@ const Opportunities = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-8 font-sans antialiased rounded-[12px] border border-gray-200">
-      {/* Header Section */}
       <header className="flex flex-col sm:flex-row justify-between items-center mb-8 sm:mb-10">
         <div className="mb-4 sm:mb-0">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">Sales Pipeline</h1>
           <p className="text-gray-600 mt-1 text-sm font-medium">Track and manage your opportunities with ease</p>
         </div>
         <button
-  onClick={() => {
-    setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
-    setEditingOpportunityId(null); // Force create mode
-    setContactSearch('');
-    debouncedSetShowForm(true);
-  }}
-  className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-full shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300/50"
->
-  <FaPlus className="mr-2" /> New Opportunity
-</button>
+          onClick={() => {
+            setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+            setEditingOpportunityId(null);
+            setContactSearch('');
+            debouncedSetShowForm(true);
+          }}
+          className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-full shadow-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300/50"
+        >
+          <FaPlus className="mr-2" /> New Opportunity
+        </button>
       </header>
-
-      {/* Loading Spinner */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <FaSpinner className="animate-spin text-indigo-500 text-5xl drop-shadow-md" />
-        </div>
-      )}
 
       {/* Success Message */}
       {successMessage && (
@@ -583,9 +599,13 @@ const Opportunities = () => {
             <FaChartLine className="text-indigo-600 text-xl sm:text-2xl" />
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Value</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                {formatCurrency(allOpportunities.reduce((sum, opp) => sum + opp.value, 0))}
-              </p>
+              {isLoading ? (
+                <p className="text-xl sm:text-2xl font-bold text-gray-400 animate-pulse">Loading...</p>
+              ) : (
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                  {formatCurrency(allOpportunities.reduce((sum, opp) => sum + opp.value, 0))}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -594,9 +614,13 @@ const Opportunities = () => {
             <FaChartLine className="text-green-600 text-xl sm:text-2xl" />
             <div>
               <p className="text-sm text-gray-500 font-medium">Open Opportunities</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                {allOpportunities.filter((opp) => opp.stage !== 'CLOSED').length}
-              </p>
+              {isLoading ? (
+                <p className="text-xl sm:text-2xl font-bold text-gray-400 animate-pulse">Loading...</p>
+              ) : (
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                  {allOpportunities.filter((opp) => opp.stage !== 'CLOSED').length}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -605,9 +629,13 @@ const Opportunities = () => {
             <FaChartLine className="text-yellow-600 text-xl sm:text-2xl" />
             <div>
               <p className="text-sm text-gray-500 font-medium">Best Opportunity ⭐</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                {formatCurrency(bestOpportunity)}
-              </p>
+              {isLoading ? (
+                <p className="text-xl sm:text-2xl font-bold text-gray-400 animate-pulse">Loading...</p>
+              ) : (
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                  {formatCurrency(bestOpportunity)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -627,6 +655,9 @@ const Opportunities = () => {
         >
           <FaExpand className="mr-2" /> {isExpanded ? 'Collapse' : 'Expand'}
         </button>
+      </div>
+      <div className='mb-5 ml-1'>
+        {isLoading && <LoadingIndicator />}
       </div>
 
       {/* Filters Panel */}
@@ -772,7 +803,13 @@ const Opportunities = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {stage.opportunities.length === 0 ? (
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan="9" className="px-4 py-6 text-center text-gray-500">
+                            <FaSpinner className="animate-spin inline mr-2" /> Loading opportunities...
+                          </td>
+                        </tr>
+                      ) : stage.opportunities.length === 0 ? (
                         <tr>
                           <td colSpan="9" className="px-4 py-6 text-center text-gray-500">No opportunities in this stage.</td>
                         </tr>
@@ -813,22 +850,22 @@ const Opportunities = () => {
                               </select>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700">{opp.status}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                          <div className="flex items-center space-x-2">
-                            {opp.owner.profilePhotoUrl ? (
-                              <img
-                              src={`http://localhost:8080${opp.owner.profilePhotoUrl}`}
-                                alt={opp.owner.username || 'Owner'}
-                                className="h-6 w-6 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
-                                {getInitials(opp.owner.username)}
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              <div className="flex items-center space-x-2">
+                                {opp.owner?.profilePhotoUrl ? (
+                                  <img
+                                    src={`http://localhost:8080${opp.owner.profilePhotoUrl}`}
+                                    alt={opp.owner.username || 'Owner'}
+                                    className="h-6 w-6 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                                    {getInitials(opp.owner?.username)}
+                                  </div>
+                                )}
+                                <span>{opp.owner?.username || 'None'}</span>
                               </div>
-                            )}
-                            <span>{opp.owner.username || 'None'}</span>
-                          </div>
-                        </td>
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex space-x-2">
                                 <button
@@ -919,7 +956,6 @@ const Opportunities = () => {
                         </div>
                         <span className="text-xs text-indigo-600 font-semibold">{opp.progress}%</span>
                       </div>
-                      
                     </div>
                     <p className="text-sm text-gray-700 font-medium pb-2">
                       Status: <span className={`${opp.status === 'WON' ? 'text-green-600' : opp.status === 'LOST' ? 'text-red-600' : 'text-yellow-500'}`}>{opp.status.toUpperCase()}</span>
@@ -927,7 +963,6 @@ const Opportunities = () => {
                     <p className="text-xs text-gray-500 font-medium truncate mb-2">
                       Created: {new Date(opp.createdAt).toLocaleDateString()}
                     </p>
-                 
                   </div>
                 ))}
               </div>
@@ -989,64 +1024,118 @@ const Opportunities = () => {
 
       {/* Opportunity Form */}
       {showForm && formData && (
-  <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-    <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Title</label>
-          <input
-            type="text"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            placeholder="Enter opportunity title"
-            required
-          />
-        </div>
+        <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Title</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Enter opportunity title"
+                  required
+                />
+              </div>
 
-        {/* Updated Contact Field */}
-        <div className="space-y-1 w-full max-w-md">
-          <label className="block text-sm font-medium text-gray-700">Contact</label>
-          <div className="relative">
-            {formData.contactId ? (
-              (() => {
-                const selectedContact = contacts.find((contact) => contact.id === Number(formData.contactId));
-                if (!selectedContact && preselectedContactId && preselectedContactName) {
-                  // If the contact isn't in the contacts array but we have preselected data
-                  return (
+              {/* Updated Contact Field */}
+              <div className="space-y-1 w-full max-w-md">
+                <label className="block text-sm font-medium text-gray-700">Contact</label>
+                <div className="relative">
+                  {formData.contactId ? (
+                    (() => {
+                      const selectedContact = contacts.find((contact) => contact.id === Number(formData.contactId));
+                      if (!selectedContact && preselectedContactId && preselectedContactName) {
+                        return (
+                          <div
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
+                            onClick={() => setShowContactDropdown(!showContactDropdown)}
+                          >
+                            <div
+                              className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                            >
+                              {getInitials(preselectedContactName)}
+                            </div>
+                            <span className="truncate group relative flex-1">
+                              {preselectedContactName}
+                              <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                {preselectedContactName}
+                              </span>
+                            </span>
+                            <svg
+                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                          </div>
+                        );
+                      }
+                      if (!selectedContact) {
+                        return (
+                          <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
+                            <span>Loading...</span>
+                            <svg
+                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
+                          onClick={() => setShowContactDropdown(!showContactDropdown)}
+                        >
+                          {selectedContact.photoUrl ? (
+                            <img
+                              src={`http://localhost:8080${selectedContact.photoUrl}`}
+                              alt={selectedContact.name}
+                              className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div
+                              className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                            >
+                              {getInitials(selectedContact.name)}
+                            </div>
+                          )}
+                          <span className="truncate group relative flex-1">
+                            {selectedContact.name}
+                            <span className="text-xs">
+                              {selectedContact.company?.name ? ` (${selectedContact.company.name})` : ''}
+                            </span>
+                            <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                              {selectedContact.name}
+                            </span>
+                          </span>
+                          <svg
+                            className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                          </svg>
+                        </div>
+                      );
+                    })()
+                  ) : (
                     <div
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                        text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-400 flex justify-between items-center min-w-0 cursor-pointer"
                       onClick={() => setShowContactDropdown(!showContactDropdown)}
                     >
-                      <div
-                        className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
-                      >
-                        {getInitials(preselectedContactName)}
-                      </div>
-                      <span className="truncate group relative flex-1">
-                        {preselectedContactName}
-                        <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                          {preselectedContactName}
-                        </span>
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
-                    </div>
-                  );
-                }
-                if (!selectedContact) {
-                  return (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
-                      <span>Loading...</span>
+                      <span>Select a contact</span>
                       <svg
                         className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
                         fill="none"
@@ -1057,269 +1146,202 @@ const Opportunities = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                       </svg>
                     </div>
-                  );
-                }
-                return (
-                  <div
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                      text-gray-700 flex items-center space-x-3 min-w-0 cursor-pointer"
-                    onClick={() => setShowContactDropdown(!showContactDropdown)}
-                  >
-                    {selectedContact.photoUrl ? (
-                      <img
-                        src={`http://localhost:8080${selectedContact.photoUrl}`}
-                        alt={selectedContact.name}
-                        className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div
-                        className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
-                      >
-                        {getInitials(selectedContact.name)}
-                      </div>
-                    )}
-                    <span className="truncate group relative flex-1">
-                      {selectedContact.name}
-                      <span className="text-xs">
-                        {selectedContact.company?.name ? ` (${selectedContact.company.name})` : ''}
-                      </span>
-                      <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                        {selectedContact.name}
-                      </span>
-                    </span>
-                    <svg
-                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                  </div>
-                );
-              })()
-            ) : (
-              <div
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                  text-gray-400 flex justify-between items-center min-w-0 cursor-pointer"
-                onClick={() => setShowContactDropdown(!showContactDropdown)}
-              >
-                <span>Select a contact</span>
-                <svg
-                  className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
-            )}
+                  )}
 
-            {/* Contact Dropdown */}
-            {showContactDropdown && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                <div className="p-2 border-b border-gray-200">
-                  <div className="relative">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      value={contactSearch}
-                      onChange={handleContactSearch}
-                      className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg 
-                        focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Search contacts..."
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <div className="max-h-48 overflow-y-auto">
-                  <div
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500 truncate"
-                    onClick={() => {
-                      setFormData({ ...formData, contactId: null });
-                      setShowContactDropdown(false);
-                      setContactSearch('');
-                    }}
-                  >
-                    (None)
-                  </div>
-                  {filteredContacts.length > 0 ? (
-                    filteredContacts.map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3 min-w-0"
-                        onClick={() => {
-                          setFormData({ ...formData, contactId: contact.id });
-                          setShowContactDropdown(false);
-                          setContactSearch('');
-                        }}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
-                          style={{ backgroundColor: contact.photoUrl ? "transparent" : getRandomColor() }}
-                        >
-                          {contact.photoUrl ? (
-                            <img
-                              src={`http://localhost:8080${contact.photoUrl}`}
-                              alt={contact.name}
-                              className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
-                            />
-                          ) : (
-                            getInitials(contact.name)
-                          )}
+                  {/* Contact Dropdown */}
+                  {showContactDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div className="p-2 border-b border-gray-200">
+                        <div className="relative">
+                          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            value={contactSearch}
+                            onChange={handleContactSearch}
+                            className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            placeholder="Search contacts..."
+                            autoFocus
+                          />
                         </div>
-                        <span className="text-gray-900 font-medium truncate group relative">
-                          {contact.name}{' '}
-                          <span className="text-xs">
-                            {contact.company?.name ? `(${contact.company.name})` : ''}
-                          </span>
-                          <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                            {contact.name}
-                          </span>
-                        </span>
                       </div>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-gray-500">No contacts found</div>
+                      <div className="max-h-48 overflow-y-auto">
+                        <div
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500 truncate"
+                          onClick={() => {
+                            setFormData({ ...formData, contactId: null });
+                            setShowContactDropdown(false);
+                            setContactSearch('');
+                          }}
+                        >
+                          (None)
+                        </div>
+                        {filteredContacts.length > 0 ? (
+                          filteredContacts.map((contact) => (
+                            <div
+                              key={contact.id}
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3 min-w-0"
+                              onClick={() => {
+                                setFormData({ ...formData, contactId: contact.id });
+                                setShowContactDropdown(false);
+                                setContactSearch('');
+                              }}
+                            >
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
+                                style={{ backgroundColor: contact.photoUrl ? "transparent" : getColor() }}
+                              >
+                                {contact.photoUrl ? (
+                                  <img
+                                    src={`http://localhost:8080${contact.photoUrl}`}
+                                    alt={contact.name}
+                                    className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
+                                  />
+                                ) : (
+                                  getInitials(contact.name)
+                                )}
+                              </div>
+                              <span className="text-gray-900 font-medium truncate group relative">
+                                {contact.name}{' '}
+                                <span className="text-xs">
+                                  {contact.company?.name ? `(${contact.company.name})` : ''}
+                                </span>
+                                <span className="absolute z-20 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                  {contact.name}
+                                </span>
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-4 py-2 text-gray-500">No contacts found</div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-            )}
+
+              {/* Rest of the form fields */}
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Value (TND)</label>
+                <input
+                  type="number"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Enter value"
+                  min="0"
+                  step="100"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Priority</label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Progress (%)</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    value={formData.progress}
+                    onChange={(e) => setFormData({ ...formData, progress: Math.min(100, Math.max(0, e.target.value)) })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    min="0"
+                    max="100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })}
+                    className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
+                  >
+                    <FaArrowUp />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })}
+                    className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
+                  >
+                    <FaArrowDown />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Stage</label>
+                <select
+                  value={formData.stage}
+                  onChange={(e) => {
+                    const stage = e.target.value;
+                    const status = stage === 'CLOSED' ? formData.status : 'IN_PROGRESS';
+                    setFormData({ ...formData, stage, status });
+                  }}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  {Object.keys(stageMapping).map((key) => (
+                    <option key={key} value={key}>{stageMapping[key]}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  disabled={formData.stage !== 'CLOSED'}
+                >
+                  {formData.stage === 'CLOSED' ? (
+                    <>
+                      <option value="WON">Won</option>
+                      <option value="LOST">Lost</option>
+                    </>
+                  ) : (
+                    <option value="IN_PROGRESS">In Progress</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="md:col-span-2 flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    debouncedSetShowForm(false);
+                    setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+                    setEditingOpportunityId(null);
+                    setContactSearch('');
+                    setPreselectedContactName('');
+                    if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full hover:from-blue-700 hover:to-blue-800 shadow-md transition-all duration-300 flex items-center"
+                >
+                  {editingOpportunityId ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* Rest of the form fields remain unchanged */}
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Value (TND)</label>
-          <input
-            type="number"
-            value={formData.value}
-            onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            placeholder="Enter value"
-            min="0"
-            step="100"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Priority</label>
-          <select
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-          >
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Progress (%)</label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="number"
-              value={formData.progress}
-              onChange={(e) => setFormData({ ...formData, progress: Math.min(100, Math.max(0, e.target.value)) })}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-              min="0"
-              max="100"
-            />
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, progress: Math.min(100, formData.progress + 10) })}
-              className="p-2 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
-            >
-              <FaArrowUp />
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, progress: Math.max(0, formData.progress - 10) })}
-              className="p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
-            >
-              <FaArrowDown />
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Stage</label>
-          <select
-            value={formData.stage}
-            onChange={(e) => {
-              const stage = e.target.value;
-              const status = stage === 'CLOSED' ? formData.status : 'IN_PROGRESS';
-              setFormData({ ...formData, stage, status });
-            }}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-          >
-            {Object.keys(stageMapping).map((key) => (
-              <option key={key} value={key}>{stageMapping[key]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm 
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            disabled={formData.stage !== 'CLOSED'}
-          >
-            {formData.stage === 'CLOSED' ? (
-              <>
-                <option value="WON">Won</option>
-                <option value="LOST">Lost</option>
-              </>
-            ) : (
-              <option value="IN_PROGRESS">In Progress</option>
-            )}
-          </select>
-        </div>
-
-        <div className="md:col-span-2 flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => {
-              debouncedSetShowForm(false);
-              setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
-              setEditingOpportunityId(null);
-              setContactSearch('');
-              setPreselectedContactName('');
-              if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
-            }}
-            className="px-6 py-3 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-full 
-              hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-300"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full 
-              hover:from-blue-700 hover:to-blue-800 shadow-md transition-all duration-300 flex items-center"
-          >
-            {editingOpportunityId ? 'Update' : 'Create'}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
       {/* Expanded Opportunity Details */}
       {expandedOpportunityId && (
         <div
-          className={`fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center transition-all duration-500 
-            ${expandedOpportunityId ? 'opacity-100' : 'opacity-0 pointer-events-none'} z-50`}
+          className={`fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center transition-all duration-500 ${expandedOpportunityId ? 'opacity-100' : 'opacity-0 pointer-events-none'} z-50`}
           onClick={() => setExpandedOpportunityId(null)}
         >
           <div
@@ -1408,21 +1430,18 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
 
   return (
     <div>
-      {/* Header with Title and Close Button */}
       <div className="flex justify-between items-start mb-6">
-  <h2 className="text-2xl font-bold text-gray-800 break-words whitespace-pre-wrap max-w-[30ch]">
-    {opportunity.title}
-  </h2>
-  <button
-    onClick={onClose}
-    className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
-  >
-    <FaTimes className="w-5 h-5" />
-  </button>
-</div>
-      {/* Opportunity Details */}
+        <h2 className="text-2xl font-bold text-gray-800 break-words whitespace-pre-wrap max-w-[30ch]">
+          {opportunity.title}
+        </h2>
+        <button
+          onClick={onClose}
+          className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
+        >
+          <FaTimes className="w-5 h-5" />
+        </button>
+      </div>
       <div className="space-y-4 text-gray-700">
-        {/* Value */}
         <div className="flex items-center space-x-3">
           <FaChartLine className="text-gray-400" />
           <div>
@@ -1430,8 +1449,6 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
             <span className="text-indigo-600 font-medium">{formatCurrency(opportunity.value)}</span>
           </div>
         </div>
-
-        {/* Priority */}
         <div className="flex items-center space-x-3">
           <FaTag className="text-gray-400" />
           <div>
@@ -1441,8 +1458,6 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
             </span>
           </div>
         </div>
-
-        {/* Contact */}
         <div className="flex items-center space-x-3">
           <FaUser className="text-gray-400" />
           <span>
@@ -1450,13 +1465,11 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
             {opportunity.contact?.name || 'None'}
           </span>
         </div>
-
-        {/* Owner */}
         <div className="flex items-center space-x-3">
           <FaUser className="text-gray-400" />
           <div className="flex items-center space-x-2">
-          <span className="font-medium">Owner: </span>
-            {opportunity.owner? (
+            <span className="font-medium">Owner: </span>
+            {opportunity.owner?.profilePhotoUrl ? (
               <img
                 src={`http://localhost:8080${opportunity.owner.profilePhotoUrl}`}
                 alt={opportunity.owner.username || 'Owner'}
@@ -1467,62 +1480,31 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
                 {getInitials(opportunity.owner?.username)}
               </div>
             )}
-            <span>
-              {opportunity.owner.username || 'None'}
-            </span>
+            <span>{opportunity.owner?.username || 'None'}</span>
           </div>
-        </div>
-
-        {/* Stage */}
+          </div>
         <div className="flex items-center space-x-3">
           <FaList className="text-gray-400" />
-          <div>
+          <div className="flex items-center space-x-2">
             <span className="font-medium">Stage: </span>
             <select
               value={opportunity.stage}
               onChange={(e) => onChangeStage(e.target.value)}
-              className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+              className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
             >
               {Object.keys(stageMapping).map((key) => (
-                <option key={key} value={key}>{stageMapping[key]}</option>
+                <option key={key} value={key} className="text-gray-700 font-medium">
+                  {stageMapping[key]}
+                </option>
               ))}
             </select>
           </div>
         </div>
-
-        {/* Status */}
-        <div className="flex items-center space-x-3">
-          <FaTag className="text-gray-400" />
-          <div>
-            <span className="font-medium">Status: </span>
-            <span className="text-gray-800">{opportunity.status}</span>
-            {opportunity.stage === 'CLOSED' && (
-              <div className="mt-2 flex space-x-2">
-                <button
-                  onClick={() => onUpdateStatus('WON')}
-                  className="px-3 py-1 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 transition-all duration-200 disabled:bg-gray-400"
-                  disabled={opportunity.status === 'WON'}
-                >
-                  Mark as Won
-                </button>
-                <button
-                  onClick={() => onUpdateStatus('LOST')}
-                  className="px-3 py-1 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600 transition-all duration-200 disabled:bg-gray-400"
-                  disabled={opportunity.status === 'LOST'}
-                >
-                  Mark as Lost
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Progress */}
         <div className="flex items-center space-x-3">
           <FaChartBar className="text-gray-400" />
           <div className="flex items-center space-x-2">
             <span className="font-medium">Progress: </span>
-            <div className="w-24 bg-gray-200/50 rounded-full h-2 shadow-inner">
+            <div className="w-32 bg-gray-200 rounded-full h-2 shadow-inner">
               <div
                 className="bg-indigo-500 h-2 rounded-full transition-all duration-500 shadow-md"
                 style={{ width: `${opportunity.progress}%` }}
@@ -1533,56 +1515,59 @@ const OpportunityDetails = ({ opportunity, onClose, onEdit, onDelete, onChangeSt
               onClick={onIncrementProgress}
               className="p-1 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 transition-all duration-200"
             >
-              <FaArrowUp size={12} />
+              <FaArrowUp />
             </button>
             <button
               onClick={onDecrementProgress}
               className="p-1 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all duration-200"
             >
-              <FaArrowDown size={12} />
+              <FaArrowDown />
             </button>
           </div>
         </div>
-
-        {/* Created At */}
+        <div className="flex items-center space-x-3">
+          <FaCheck className="text-gray-400" />
+          <div className="flex items-center space-x-2">
+            <span className="font-medium">Status: </span>
+            <select
+              value={opportunity.status}
+              onChange={(e) => onUpdateStatus(e.target.value)}
+              className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+              disabled={opportunity.stage !== 'CLOSED'}
+            >
+              {opportunity.stage === 'CLOSED' ? (
+                <>
+                  <option value="WON">Won</option>
+                  <option value="LOST">Lost</option>
+                </>
+              ) : (
+                <option value="IN_PROGRESS">In Progress</option>
+              )}
+            </select>
+          </div>
+        </div>
         <div className="flex items-center space-x-3">
           <FaCalendarAlt className="text-gray-400" />
           <span>
-            <span className="font-medium">Created At: </span>
-            {new Date(opportunity.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            <span className="font-medium">Created: </span>
+            {new Date(opportunity.createdAt).toLocaleDateString()}
           </span>
         </div>
       </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-4 mt-8">
-            {/* Edit Button */}
-            <button
-              onClick={onEdit}
-              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg shadow-md hover:from-indigo-700 hover:to-indigo-800 focus:ring-4 focus:ring-indigo-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
-            >
-              <FaEdit className="w-4 h-4" />
-              <span>Edit</span>
-            </button>
-
-            {/* Delete Button */}
-            <button
-              onClick={onDelete}
-              className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg shadow-md hover:from-red-700 hover:to-red-800 focus:ring-4 focus:ring-red-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
-            >
-              <FaTrash className="w-4 h-4" />
-              <span>Delete</span>
-            </button>
-
-            {/* Cancel Button */}
-            <button
-              onClick={onClose}
-              className="px-5 py-2.5 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-lg shadow-md hover:from-gray-300 hover:to-gray-400 focus:ring-4 focus:ring-gray-300/50 transition-all duration-300 flex items-center space-x-2 transform hover:-translate-y-0.5 active:scale-95"
-            >
-              <FaTimes className="w-4 h-4" />
-              <span>Cancel</span>
-            </button>
-          </div>
+      <div className="flex justify-end space-x-4 mt-6">
+        <button
+          onClick={onEdit}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
+        >
+          <FaEdit className="inline mr-2" /> Edit
+        </button>
+        <button
+          onClick={onDelete}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
+        >
+          <FaTrash className="inline mr-2" /> Delete
+        </button>
+      </div>
     </div>
   );
 };

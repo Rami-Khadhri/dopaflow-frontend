@@ -138,6 +138,8 @@ const NotificationDropdown = () => {
 
   useEffect(() => {
     fetchNotifications();
+    const interval = setInterval(fetchNotifications,  60 * 1000); // Fetch every 1 minute
+    return () => clearInterval(interval);
   }, [fetchNotifications]);
 
   useEffect(() => {
@@ -147,6 +149,7 @@ const NotificationDropdown = () => {
     if (isOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
   return (
     <div style={{ marginRight: '200px', marginTop: '-22px' }}>
       <button

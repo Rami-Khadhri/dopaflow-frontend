@@ -17,6 +17,7 @@
     "axios": "^1.8.1",
     "cra-template": "1.2.0",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.6.2",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",
     "msgpack5": "^6.0.2",

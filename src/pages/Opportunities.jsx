@@ -1026,6 +1026,35 @@ const Opportunities = () => {
       {showForm && formData && (
         <div className="fixed inset-0 bg-gray-900/75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div ref={formRef} className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-100/50 animate-fadeIn">
+          <div className="flex justify-between items-center mb-6">
+  <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+    {editingOpportunityId ? (
+      <>
+        <FaEdit className="mr-2 text-blue-600" />
+        Edit Opportunity
+      </>
+    ) : (
+      <>
+        <FaPlus className="mr-2 text-blue-600" />
+        New Opportunity
+      </>
+    )}
+  </h2>
+  <button
+    onClick={() => {
+      debouncedSetShowForm(false);
+      setFormData({ id: null, title: '', value: 0, contactId: '', priority: 'MEDIUM', progress: 0, stage: 'PROSPECTION', status: 'IN_PROGRESS' });
+      setEditingOpportunityId(null);
+      setContactSearch('');
+      setPreselectedContactName('');
+      if (preselectedContactId && !editingOpportunityId) handleBackToAssignPopup();
+    }}
+    className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
+  >
+    <FaTimes className="w-5 h-5" />
+  </button>
+</div>
+
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">Title</label>

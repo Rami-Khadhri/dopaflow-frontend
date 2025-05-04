@@ -4,7 +4,7 @@ import {
   FaTimes, FaSearch, FaUser, FaEnvelope, FaTag, FaCalendarAlt, FaClock, FaCircle, FaExclamationTriangle
 } from 'react-icons/fa';
 import axios from 'axios';
-import LoadingIndicator from '../pages/LoadingIndicator'; // Your custom loading indicator
+import LoadingIndicator from '../pages/LoadingIndicator';
 
 // Set axios defaults
 axios.defaults.baseURL = 'http://localhost:8080';
@@ -674,14 +674,7 @@ const Users = ({ onlineUsers = [] }) => {
             />
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full 
-              hover:from-blue-700 hover:to-blue-800 flex items-center shadow-lg transition-all duration-300 
-              transform hover:scale-105"
-          >
-            <FaUserPlus className="mr-2" /> Add User
-          </button>
+          
         </div>
       </header>
 

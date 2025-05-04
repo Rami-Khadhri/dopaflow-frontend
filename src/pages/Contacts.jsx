@@ -1452,7 +1452,21 @@ const companyOptions = companies.map(company => ({
       >
         ✕
       </button>
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">{editingContactId ? 'Edit Contact' : 'Create Contact'}</h2>
+      <div className="flex justify-between items-center mb-6">
+      <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+        {editingContactId ? (
+          <>
+            <FaEdit className="mr-2 text-blue-600" />
+            Edit Contact
+          </>
+        ) : (
+          <>
+            <FaPlus className="mr-2 text-blue-600" />
+            Create Contact
+          </>
+        )}
+      </h2>
+    </div>
       <form onSubmit={handleSubmit} className="form-grid">
         <div>
           <label className="form-label">Name</label>

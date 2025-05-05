@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   FaPlus, FaSearch, FaFilter, FaTrash, FaEdit, FaDownload,
   FaSpinner, FaUser, FaEnvelope, FaPhone, FaBuilding, FaStickyNote,
-  FaUndo, FaUpload, FaClock, FaCalendarAlt, FaInfoCircle, FaTimes, FaExclamationTriangle
+  FaUndo, FaUpload, FaClock, FaCalendarAlt, FaInfoCircle, FaCheck, FaExclamationCircle ,FaTimes, FaExclamationTriangle
 } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -47,6 +47,27 @@ const loadCompanyOptions = async (inputValue) => {
     console.error('Failed to fetch companies:', err);
     return [];
   }
+};
+
+const MessageDisplay = ({ message, type, onClose }) => {
+  if (!message) return null;
+
+  const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+
+  return (
+    <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 mt-5 p-4 ${bgColor} border-l-4 rounded-xl shadow-lg flex items-center justify-between animate-slideIn max-w-3xl w-full z-[1000]`}>
+      <div className="flex items-center">
+        {type === 'success' ? <FaCheck className="text-xl mr-3" /> : <FaExclamationCircle className="text-xl mr-3" />}
+        <span className="text-base">{message}</span>
+      </div>
+      <button
+        onClick={onClose}
+        className="p-1 hover:bg-opacity-20 rounded-xl transition-colors duration-200"
+      >
+        <FaTimes className="w-4 h-4" />
+      </button>
+    </div>
+  );
 };
 const getRandomColor = () => '#b0b0b0';
 const customStyles = `
@@ -290,9 +311,27 @@ const debounce = (func, delay) => {
     timeoutId = setTimeout(() => func(...args), delay);
   };
 };
+// Function to fetch user role from /profile API
+const getUserRole = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    const response = await axios.get('/api/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data.role || null;
+  } catch (error) {
+    console.error('Failed to fetch user role:', error);
+    return null;
+  }
+};
+
 
 // Main Component
 const Contacts = () => {
+  const [role, setRole] = useState(null); // State to store user role
   // State
   const [contacts, setContacts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -337,6 +376,11 @@ const Contacts = () => {
     setSelectedContact(contact);
   }, 200);
 
+  useEffect(() => {
+    getUserRole().then((fetchedRole) => {
+      setRole(fetchedRole);
+    });
+  }, []);
   // Handle newCompanyId from Companies.jsx
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -938,22 +982,33 @@ const companyOptions = companies.map(company => ({
                 <FaUpload className="text-sm" />
                 <span className="whitespace-nowrap">Import</span>
               </button>
-              <button
-                onClick={handleExport}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-              >
-                <FaDownload className="text-sm" />
-                <span className="whitespace-nowrap">Export</span>
-              </button>
+              {role !== 'User' && (
+                <button
+                  onClick={handleExport}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+                >
+                  <FaDownload className="text-sm" />
+                  <span className="whitespace-nowrap">Export</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 shadow-md">{error}</div>
+                {message && (
+          <MessageDisplay
+            message={message}
+            type="success"
+            onClose={() => setMessage(null)}
+          />
         )}
-        {message && (
-          <div className="bg-green-100 text-green-700 p-4 rounded-lg mb-6 shadow-md">{message}</div>
+
+        {error && (
+          <MessageDisplay
+            message={error}
+            type="error"
+            onClose={() => setError(null)}
+          />
         )}
 
         <div className="bg-white shadow-lg rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transform hover:shadow-xl transition-shadow duration-300">
@@ -1044,7 +1099,7 @@ const companyOptions = companies.map(company => ({
             >
               <FaUndo className="mr-2" /> Reset Filters
             </button>
-            {selectedContacts.size > 0 && (
+            {selectedContacts.size > 0   && role !== 'User' && (
               <>
                 <button
                   onClick={handleDeleteSelected}
@@ -1310,12 +1365,14 @@ const companyOptions = companies.map(company => ({
               >
                 <FaEdit className="mr-2" /> Edit
               </button>
+              {role !== 'User' && (
               <button
                 onClick={() => handleDelete(selectedContact.id)}
                 className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-300 shadow-md flex items-center justify-center"
               >
                 <FaTrash className="mr-2" /> Delete
               </button>
+              )}
               <button
                 onClick={handleCreateOpportunity}
                 className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 shadow-md flex items-center justify-center"

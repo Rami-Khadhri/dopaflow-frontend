@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   FaPlus, FaGlobe, FaSearch, FaFilter, FaTrash, FaEdit, FaDownload,
   FaSpinner, FaUser, FaEnvelope, FaPhone, FaBuilding, FaStickyNote,
-  FaUndo, FaUpload, FaTimes, FaExclamationTriangle
+  FaUndo, FaUpload, FaTimes, FaExclamationTriangle,FaExclamationCircle,FaCheck
 } from 'react-icons/fa';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -14,6 +14,28 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // Axios config
 axios.defaults.baseURL = 'http://localhost:8080';
 axios.defaults.withCredentials = true;
+
+
+const MessageDisplay = ({ message, type, onClose }) => {
+  if (!message) return null;
+
+  const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+
+  return (
+    <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 mt-5 p-4 ${bgColor} border-l-4 rounded-xl shadow-lg flex items-center justify-between animate-slideIn max-w-3xl w-full z-[1000]`}>
+      <div className="flex items-center">
+        {type === 'success' ? <FaCheck className="text-xl mr-3" /> : <FaExclamationCircle className="text-xl mr-3" />}
+        <span className="text-base">{message}</span>
+      </div>
+      <button
+        onClick={onClose}
+        className="p-1 hover:bg-opacity-20 rounded-xl transition-colors duration-200"
+      >
+        <FaTimes className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 // Utility Functions
 const getInitials = (name = '') => {
@@ -249,9 +271,25 @@ const customStyles = `
     opacity: 1;
   }
 `;
+const getUserRole = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    const response = await axios.get('/api/profile', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data.role || null;
+  } catch (error) {
+    console.error('Failed to fetch user role:', error);
+    return null;
+  }
+};
 
 // Main Component
 const Companies = () => {
+  const [role, setRole] = useState(null); // State to store user role
   // State
   const [companies, setCompanies] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -298,6 +336,12 @@ const Companies = () => {
     size: pageSize,
     sort: `${sortColumn},${sortDirection}`,
   });
+
+  useEffect(() => {
+    getUserRole().then((fetchedRole) => {
+      setRole(fetchedRole);
+    });
+  }, []);
 
   const fetchCompaniesQuery = async () => {
     const token = localStorage.getItem('token');
@@ -786,20 +830,40 @@ const Companies = () => {
                 <FaUpload className="text-sm" />
                 <span className="whitespace-nowrap">Import</span>
               </button>
-              <button
-                onClick={handleExport}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-              >
-                <FaDownload className="text-sm" />
-                <span className="whitespace-nowrap">Export</span>
-              </button>
+          {role !== 'User' && (
+            <button
+              onClick={handleExport}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+            >
+              <FaDownload className="text-sm" />
+              <span className="whitespace-nowrap">Export</span>
+            </button>
+          )}
             </div>
           </div>
         </div>
 
-        {queryError && <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 shadow-md">{queryError.message}</div>}
-        {error && <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 shadow-md">{error}</div>}
-        {message && <div className="bg-green-100 text-green-700 p-4 rounded-lg mb-6 shadow-md">{message}</div>}
+        {queryError && (
+          <MessageDisplay
+            message={queryError.message}
+            type="error"
+            onClose={() => queryClient.setQueryData(['companies', activeTab, searchQuery, filters, currentPage, sortColumn, sortDirection], null)}
+          />
+        )}
+        {error && (
+          <MessageDisplay
+            message={error}
+            type="error"
+            onClose={() => setError(null)}
+          />
+        )}
+        {message && (
+          <MessageDisplay
+            message={message}
+            type="success"
+            onClose={() => setMessage(null)}
+          />
+        )}
 
         <div className="bg-white shadow-lg rounded-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transform hover:shadow-xl transition-shadow duration-300">
           <div className="flex flex-wrap gap-6 items-center">
@@ -867,7 +931,7 @@ const Companies = () => {
             >
               <FaUndo className="mr-2" /> Reset Filters
             </button>
-            {selectedCompanies.size > 0 && (
+            {selectedCompanies.size > 0  &&  role !== 'User' && (
               <button
                 onClick={handleDeleteSelected}
                 className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-700 transition-colors shadow-md"
@@ -1059,12 +1123,14 @@ const Companies = () => {
               >
                 <FaEdit className="mr-2" /> Edit
               </button>
+              {role !== 'User' && (
               <button
                 onClick={() => handleDelete(selectedCompany.id)}
                 className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all duration-300 shadow-md flex items-center justify-center"
               >
                 <FaTrash className="mr-2" /> Delete
               </button>
+              )}
             </div>
           </div>
         )}

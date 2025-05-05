@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   FaEdit, FaTrash, FaUserPlus, FaSpinner, FaBan, FaUserCheck, FaCheck,
-  FaTimes, FaSearch, FaUser, FaEnvelope, FaTag, FaCalendarAlt, FaClock, FaCircle, FaExclamationTriangle
+  FaTimes, FaSearch, FaUser, FaEnvelope, FaTag, FaCalendarAlt, FaClock, FaCircle, FaExclamationTriangle, FaExclamationCircle
 } from 'react-icons/fa';
 import axios from 'axios';
 import LoadingIndicator from '../pages/LoadingIndicator';
@@ -9,6 +9,28 @@ import LoadingIndicator from '../pages/LoadingIndicator';
 // Set axios defaults
 axios.defaults.baseURL = 'http://localhost:8080';
 axios.defaults.withCredentials = true;
+
+// Message Display Component
+const MessageDisplay = ({ message, type, onClose }) => {
+  if (!message) return null;
+
+  const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+
+  return (
+    <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 mt-5 p-4 ${bgColor} border-l-4 rounded-xl shadow-lg flex items-center justify-between animate-slideIn max-w-3xl w-full z-[1000]`}>
+      <div className="flex items-center">
+        {type === 'success' ? <FaCheck className="text-xl mr-3" /> : <FaExclamationCircle className="text-xl mr-3" />}
+        <span className="text-base">{message}</span>
+      </div>
+      <button
+        onClick={onClose}
+        className="p-1 hover:bg-opacity-20 rounded-xl transition-colors duration-200"
+      >
+        <FaTimes className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 // Utility Functions (unchanged)
 const getInitials = (name) => {
@@ -62,7 +84,7 @@ const formatDate = (date) => {
   }) : 'Never';
 };
 
-// User Profile Popup Component (with skeleton)
+// User Profile Popup Component (unchanged)
 const UserProfilePopup = ({ user, show }) => {
   const lastActive = formatLastActive(user.lastActive, user.isOnline);
   if (!user) {
@@ -135,7 +157,7 @@ const UserProfilePopup = ({ user, show }) => {
   );
 };
 
-// User Sidebar Component (with skeleton)
+// User Sidebar Component (unchanged)
 const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading }) => {
   const lastActive = formatLastActive(user?.lastActive, user?.isOnline);
   if (!user) {
@@ -233,9 +255,9 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading 
           <span className="text-sm">{user.role}</span>
         </div>
         <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
-        <FaCalendarAlt className="text-indigo-500 w-5 h-5" />
-        <span className="text-sm">{formatBirthdate(user.birthdate)}</span>
-      </div>
+          <FaCalendarAlt className="text-indigo-500 w-5 h-5" />
+          <span className="text-sm">{formatBirthdate(user.birthdate)}</span>
+        </div>
         <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
           <FaClock className="text-indigo-500 w-5 h-5" />
           <span className="text-sm">Last Login: {formatDate(user.lastLogin)}</span>
@@ -281,7 +303,7 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading 
   );
 };
 
-// Custom Modal Component (with skeleton)
+// Custom Modal Component (unchanged)
 const CustomModal = ({ isOpen, onClose, onConfirm, title, message, actionType, loading }) => {
   if (!isOpen) return null;
 
@@ -366,7 +388,7 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, actionType, l
   );
 };
 
-// Main Users Component (Updated with Skeleton)
+// Main Users Component
 const Users = ({ onlineUsers = [] }) => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -394,6 +416,21 @@ const Users = ({ onlineUsers = [] }) => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    let timer;
+    if (message) {
+      timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+    }
+    if (error) {
+      timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [message, error]);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -410,7 +447,7 @@ const Users = ({ onlineUsers = [] }) => {
             return {
               ...user,
               profilePhotoUrl: user.profilePhotoUrl ? `http://localhost:8080${user.profilePhotoUrl}` : '',
-              birthdate: user.birthdate || null, // Keep as string or null
+              birthdate: user.birthdate || null,
               lastActive: onlineUser.lastActive !== undefined ? onlineUser.lastActive : user.lastActive !== null ? Number(user.lastActive) : null,
               isOnline: onlineUser.isOnline !== undefined ? onlineUser.isOnline : false,
             };
@@ -473,13 +510,6 @@ const Users = ({ onlineUsers = [] }) => {
     setFilteredUsers(filtered);
   };
 
-  const clearMessage = () => {
-    setTimeout(() => {
-      setMessage('');
-      setError('');
-    }, 3000);
-  };
-
   const handleDelete = (id) => {
     setModalConfig({
       isOpen: true,
@@ -496,10 +526,8 @@ const Users = ({ onlineUsers = [] }) => {
           setFilteredUsers(filteredUsers.filter((user) => user.id !== id));
           setMessage('User deleted successfully');
           setSelectedUser(null);
-          clearMessage();
         } catch (error) {
           setError(error.response?.data?.message || 'Failed to delete user');
-          clearMessage();
         } finally {
           setLoading(false);
           setModalConfig({ ...modalConfig, isOpen: false });
@@ -540,10 +568,8 @@ const Users = ({ onlineUsers = [] }) => {
             setSelectedUser({ ...selectedUser, status: newStatus });
           }
           setMessage(`User ${action}d successfully`);
-          clearMessage();
         } catch (error) {
           setError(error.response?.data?.message || `Failed to ${action} user`);
-          clearMessage();
         } finally {
           setLoading(false);
           setModalConfig({ ...modalConfig, isOpen: false });
@@ -562,7 +588,7 @@ const Users = ({ onlineUsers = [] }) => {
       const token = localStorage.getItem('token');
       const data = {
         ...formData,
-        birthdate: formData.birthdate || null, // Send as string (YYYY-MM-DD) or null
+        birthdate: formData.birthdate || null,
       };
       if (!editingUser) {
         const response = await axios.post('/api/users/create', data, {
@@ -615,11 +641,8 @@ const Users = ({ onlineUsers = [] }) => {
         }
       }
       setMessage(editingUser ? 'User updated successfully' : 'User created successfully');
-      clearMessage();
-      resetForm();
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to save user');
-      clearMessage();
     } finally {
       setLoading(false);
     }
@@ -666,10 +689,10 @@ const Users = ({ onlineUsers = [] }) => {
   return (
     <div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border" style={{ overflow: 'visible' }}>
       <header className="flex flex-col sm:flex-row justify-between items-center mb-12 max-w-6xl mx-auto gap-4">
-      <h1 className="text-3xl font-bold text-[#333] flex items-center">
-        <span className="material-icons-round mr-2 text-[#0056B3]">people</span>
-        Users Dashboard
-      </h1>
+        <h1 className="text-3xl font-bold text-[#333] flex items-center">
+          <span className="material-icons-round mr-2 text-[#0056B3]">people</span>
+          Users Dashboard
+        </h1>
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <input
@@ -682,39 +705,22 @@ const Users = ({ onlineUsers = [] }) => {
             />
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-          
         </div>
       </header>
 
       {error && (
-        <div className="mb-8 p-6 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-xl shadow-lg 
-          flex items-center justify-between animate-slideIn max-w-3xl mx-auto">
-          <div className="flex items-center">
-            <FaTimes className="text-2xl mr-3" />
-            <span className="text-lg">{error}</span>
-          </div>
-          <button
-            onClick={() => setError(null)}
-            className="p-2 text-red-700 hover:text-red-900 rounded-full hover:bg-red-200 transition-colors duration-200"
-          >
-            <FaTimes className="w-5 h-5" />
-          </button>
-        </div>
+        <MessageDisplay
+          message={error}
+          type="error"
+          onClose={() => setError(null)}
+        />
       )}
       {message && (
-        <div className="mb-8 p-6 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-xl shadow-lg 
-          flex items-center justify-between animate-slideIn max-w-3xl mx-auto">
-          <div className="flex items-center">
-            <FaCheck className="text-2xl mr-3" />
-            <span className="text-lg">{message}</span>
-          </div>
-          <button
-            onClick={() => setMessage(null)}
-            className="p-2 text-green-700 hover:text-green-900 rounded-full hover:bg-green-200 transition-colors duration-200"
-          >
-            <FaTimes className="w-5 h-5" />
-          </button>
-        </div>
+        <MessageDisplay
+          message={message}
+          type="success"
+          onClose={() => setMessage(null)}
+        />
       )}
 
       <div
@@ -1045,7 +1051,7 @@ const Users = ({ onlineUsers = [] }) => {
   );
 };
 
-// Custom Styles (Updated)
+// Custom Styles (unchanged)
 const styles = `
   @keyframes slideIn {
     from { transform: translateY(-20px); opacity: 0; }

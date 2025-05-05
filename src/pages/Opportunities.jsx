@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
+  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaExclamationCircle ,FaArrowUp, FaArrowDown, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
   FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt
 } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -81,6 +81,27 @@ const Opportunities = () => {
 
   const debouncedSetShowForm = useMemo(() => debounce((value) => setShowForm(value), 200), []);
 
+  const MessageDisplay = ({ message, type, onClose }) => {
+    if (!message) return null;
+  
+    const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+  
+    return (
+      <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 mt-5 p-4 ${bgColor} border-l-4 rounded-xl shadow-lg flex items-center justify-between animate-slideIn max-w-3xl w-full z-[1000]`}>
+        <div className="flex items-center">
+          {type === 'success' ? <FaCheck className="text-xl mr-3" /> : <FaExclamationCircle className="text-xl mr-3" />}
+          <span className="text-base">{message}</span>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-opacity-20 rounded-xl transition-colors duration-200"
+        >
+          <FaTimes className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  };
+
   // Handle click outside to close form
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -107,6 +128,21 @@ const Opportunities = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    let timer;
+    if (successMessage) {
+      timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    }
+    if (errorMessage) {
+      timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [successMessage, errorMessage]);
+
   const debouncedFetchContacts = useMemo(
     () => debounce((query) => {
       if (!query) {
@@ -120,6 +156,7 @@ const Opportunities = () => {
     }, 300),
     [contacts]
   );
+
 
   useEffect(() => {
     fetchInitialData();
@@ -572,29 +609,21 @@ const Opportunities = () => {
           <FaPlus className="mr-2" /> New Opportunity
         </button>
       </header>
+                  {successMessage && (
+              <MessageDisplay
+                message={successMessage}
+                type="success"
+                onClose={() => setSuccessMessage(null)}
+              />
+            )}
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-6 px-4 sm:px-6 py-4 bg-green-50 text-green-700 rounded-lg shadow-md flex items-center space-x-3 transition-all duration-300 hover:shadow-lg">
-          <FaCheck className="text-green-600" />
-          <span>{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-green-600 hover:text-green-800">
-            <FaTimes />
-          </button>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {errorMessage && (
-        <div className="mb-6 px-4 sm:px-6 py-4 bg-red-50 text-red-700 rounded-lg shadow-md flex items-center space-x-3 transition-all duration-300 hover:shadow-lg">
-          <FaTimes className="text-red-600" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-red-600 hover:text-red-800">
-            <FaTimes />
-          </button>
-        </div>
-      )}
-
+            {errorMessage && (
+              <MessageDisplay
+                message={errorMessage}
+                type="error"
+                onClose={() => setErrorMessage(null)}
+              />
+            )}
       {/* Stats Section */}
       <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100/50 transition-all duration-300 transform hover:scale-105 hover:shadow-xl">

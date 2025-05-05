@@ -24,8 +24,16 @@ const getRandomColor = () => {
 
 const formatBirthdate = (birthdate) => {
   if (!birthdate) return 'N/A';
-  const date = new Date(birthdate);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  // If birthdate is a string (YYYY-MM-DD), use it directly
+  if (typeof birthdate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(birthdate)) {
+    const date = new Date(birthdate);
+    return date.toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  }
+  // If birthdate is a timestamp, convert it
+  const date = new Date(Number(birthdate));
+  return isNaN(date.getTime())
+    ? 'N/A'
+    : date.toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
 const formatLastActive = (lastActive, isOnline) => {
@@ -45,7 +53,7 @@ const formatLastActive = (lastActive, isOnline) => {
 };
 
 const formatDate = (date) => {
-  return date ? new Date(date).toLocaleDateString('en-US', {
+  return date ? new Date(date).toLocaleDateString('fr-FR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -225,9 +233,9 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading 
           <span className="text-sm">{user.role}</span>
         </div>
         <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
-          <FaCalendarAlt className="text-indigo-500 w-5 h-5" />
-          <span className="text-sm">{formatBirthdate(user.birthdate)}</span>
-        </div>
+        <FaCalendarAlt className="text-indigo-500 w-5 h-5" />
+        <span className="text-sm">{formatBirthdate(user.birthdate)}</span>
+      </div>
         <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
           <FaClock className="text-indigo-500 w-5 h-5" />
           <span className="text-sm">Last Login: {formatDate(user.lastLogin)}</span>
@@ -395,20 +403,20 @@ const Users = ({ onlineUsers = [] }) => {
           Authorization: token ? `Bearer ${token}` : undefined,
         },
       });
-
+  
       const updatedUsers = Array.isArray(response.data)
         ? response.data.map((user) => {
             const onlineUser = onlineUsers.find((ou) => ou.id === user.id) || {};
             return {
               ...user,
               profilePhotoUrl: user.profilePhotoUrl ? `http://localhost:8080${user.profilePhotoUrl}` : '',
-              birthdate: user.birthdate ? Number(user.birthdate) : null,
+              birthdate: user.birthdate || null, // Keep as string or null
               lastActive: onlineUser.lastActive !== undefined ? onlineUser.lastActive : user.lastActive !== null ? Number(user.lastActive) : null,
               isOnline: onlineUser.isOnline !== undefined ? onlineUser.isOnline : false,
             };
           })
         : [];
-
+  
       setUsers(updatedUsers);
       setFilteredUsers(updatedUsers);
       setError(null);
@@ -554,7 +562,7 @@ const Users = ({ onlineUsers = [] }) => {
       const token = localStorage.getItem('token');
       const data = {
         ...formData,
-        birthdate: formData.birthdate ? new Date(formData.birthdate).getTime() : null,
+        birthdate: formData.birthdate || null, // Send as string (YYYY-MM-DD) or null
       };
       if (!editingUser) {
         const response = await axios.post('/api/users/create', data, {
@@ -570,7 +578,7 @@ const Users = ({ onlineUsers = [] }) => {
           profilePhotoUrl: photoUrl,
           isOnline: false,
           lastActive: response.data.lastActive !== null ? Number(response.data.lastActive) : null,
-          birthdate: response.data.birthdate ? Number(response.data.birthdate) : null,
+          birthdate: response.data.birthdate || null,
         };
         setUsers([...users, newUser]);
         setFilteredUsers([...filteredUsers, newUser].filter((user) =>
@@ -592,7 +600,7 @@ const Users = ({ onlineUsers = [] }) => {
           profilePhotoUrl: photoUrl,
           isOnline: editingUser.isOnline,
           lastActive: response.data.lastActive !== null ? Number(response.data.lastActive) : null,
-          birthdate: response.data.birthdate ? Number(response.data.birthdate) : null,
+          birthdate: response.data.birthdate || null,
         };
         const updatedUsers = users.map((user) =>
           user.id === editingUser.id ? updatedUser : user
@@ -656,12 +664,12 @@ const Users = ({ onlineUsers = [] }) => {
   const onlineUsersCount = filteredUsers.filter(user => user.isOnline).length;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-5 rounded-[10px] border relative" style={{ overflow: 'visible' }}>
+    <div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border" style={{ overflow: 'visible' }}>
       <header className="flex flex-col sm:flex-row justify-between items-center mb-12 max-w-6xl mx-auto gap-4">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800 flex items-center">
-          Users Dashboard
-         
-        </h1>
+      <h1 className="text-3xl font-bold text-[#333] flex items-center">
+        <span className="material-icons-round mr-2 text-[#0056B3]">people</span>
+        Users Dashboard
+      </h1>
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <input

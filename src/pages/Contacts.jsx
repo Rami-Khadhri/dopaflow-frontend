@@ -908,7 +908,10 @@ const companyOptions = companies.map(company => ({
   <style>{customStyles}</style>
   <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 transform transition-all duration-300 hover:shadow-xl">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 whitespace-nowrap">Contacts</h1>
+        <h1 className="text-3xl font-bold text-[#333] flex items-center">
+        <span className="material-icons-round mr-2 text-[#0056B3]">contacts</span>
+        Contacts
+      </h1>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <div className="relative w-full sm:w-64">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -1144,22 +1147,31 @@ const companyOptions = companies.map(company => ({
                     <td className="px-6 py-4 text-gray-700">{contact.email}</td>
                     <td className="px-6 py-4 text-gray-700">{contact.phone || 'N/A'}</td>
                     <td className="px-6 py-4">
-                      {contact.owner ? (
-                        <div className="flex items-center space-x-4">
-                          {contact.owner.profilePhotoUrl ? (
-                            <img src={`${axios.defaults.baseURL}${contact.owner.profilePhotoUrl}`} alt={contact.owner.username} className="w-10 h-10 rounded-full shadow-md" />
-                          ) : (
+                    {contact.owner ? (
+                      <div className="flex items-center space-x-4">
+                        {contact.owner.profilePhotoUrl ? (
+                          <img
+                            src={`${axios.defaults.baseURL}${contact.owner.profilePhotoUrl}`}
+                            alt={contact.owner.username}
+                            className="w-10 h-10 rounded-full shadow-md"
+                          />
+                        ) : (
+                          <div className="flex-none">
                             <div
-                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md"
-                              style={{ backgroundColor: getRandomColor(), backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.3))' }}
+                              className="!w-10 !h-10 min-w-10 min-h-10 aspect-square rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden text-lg"
+                              style={{
+                                backgroundColor: getRandomColor(),
+                                backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.3))',
+                              }}
                             >
                               {getInitials(contact.owner.username)}
                             </div>
-                          )}
-                          <span className="text-gray-700">{contact.owner.username}</span>
-                        </div>
-                      ) : 'Unassigned'}
-                    </td>
+                          </div>
+                        )}
+                        <span className="text-gray-700">{contact.owner.username}</span>
+                      </div>
+                    ) : 'Unassigned'}
+                  </td>
                     <td className="px-6 py-4 text-gray-700">{contact.status || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-700">{contact.company?.name || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-700">{new Date(contact.createdAt).toLocaleDateString()}</td>
@@ -1236,11 +1248,11 @@ const companyOptions = companies.map(company => ({
                         <img
                           src={`${axios.defaults.baseURL}${selectedContact.owner.profilePhotoUrl}`}
                           alt={selectedContact.owner.username}
-                          className="w-6 h-6 rounded-full shadow-md"
+                          className="w-8 h-8 rounded-full shadow-md"
                         />
                       ) : (
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold shadow-md"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md"
                           style={{
                             backgroundColor: getRandomColor(),
                             backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(0,0,0,0.1))',

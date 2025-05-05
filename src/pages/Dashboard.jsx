@@ -176,6 +176,7 @@ const Dashboard = () => {
   ];
 
   return (
+<div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border">
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <h1 className="text-3xl font-bold text-[#333] flex items-center">
@@ -333,6 +334,7 @@ const Dashboard = () => {
       <div className="text-center text-sm text-gray-500">
         Last updated: {lastUpdated.toLocaleString()}
       </div>
+    </div>
     </div>
   );
 };

@@ -756,7 +756,10 @@ const Companies = () => {
       <style>{customStyles}</style>
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 transform transition-all duration-300 hover:shadow-xl">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 whitespace-nowrap">Companies</h1>
+        <h1 className="text-3xl font-bold text-[#333] flex items-center">
+        <span className="material-icons-round mr-2 text-[#0056B3]">apartment</span>
+        Companies
+      </h1>
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <div className="relative w-full sm:w-64">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

@@ -125,7 +125,7 @@ const Profile = ({ setUser }) => {
         currentPassword: '',
         newPassword: '',
         confirmNewPassword: '',
-        birthdate: response.data.birthdate ? new Date(response.data.birthdate).toISOString().split('T')[0] : '',
+        birthdate: response.data.birthdate || '', // Keep as string
         role: response.data.role || 'N/A',
         status: response.data.status || 'N/A',
         verified: response.data.verified || false,
@@ -609,7 +609,6 @@ const Profile = ({ setUser }) => {
                           />
                         </div>
                       </div>
-
                       <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                         <div className="flex items-center border border-gray-200 rounded-lg bg-gray-100">

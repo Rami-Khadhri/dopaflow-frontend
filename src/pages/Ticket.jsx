@@ -312,7 +312,7 @@ const Ticket = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+<div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border">
       {loading && <LoadingIndicator />}
       {notification && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-lg text-white font-medium ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -328,7 +328,10 @@ const Ticket = () => {
       <div className="max-w-7xl mx-auto flex gap-8">
         <div className="w-1/3 bg-white rounded-2xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Tickets</h1>
+          <h1 className="text-3xl font-bold text-[#333] flex items-center">
+        <span className="material-icons-round mr-3 text-[#0056B3]">support</span>
+        Tickets
+      </h1>
             <button
               onClick={() => { setSelectedTicket(null); setIsComposeOpen(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-md"

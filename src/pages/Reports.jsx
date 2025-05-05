@@ -253,9 +253,12 @@ const Reports = () => {
   }
 
   return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div className="space-y-8 to-gray-100 min-h-screen bg-gray-100 p-6 rounded-[10px] border">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Reports and Analytics</h1>
+      <h1 className="text-3xl font-bold text-[#333] flex items-center">
+        <span className="material-icons-round mr-3 text-[#0056B3]">analytics</span>
+        Reports and analytics
+      </h1>
         {userRole !== 'User' && (
           <div className="flex flex-wrap gap-3">
             <button 

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FaPlus, FaCheck, FaEdit, FaTrash, FaUser, FaFilter, FaCalendarAlt,
   FaSpinner, FaTasks, FaBan, FaExclamationCircle, FaTimes, FaTag,
-  FaFolderOpen, FaSearch, FaExpandArrowsAlt, FaExclamationTriangle
+  FaFolderOpen, FaSearch, FaExpandArrowsAlt, FaExclamationTriangle,FaChevronDown, FaChevronUp, FaBuilding, FaArchive , FaCheckCircle
 } from 'react-icons/fa';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,33 +21,6 @@ api.interceptors.request.use(config => {
   }
   return config;
 }, error => Promise.reject(error));
-
-const getInitials = (name = '') => {
-  if (!name) return '??';
-  const names = name.split(' ');
-  return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
-};
-
-const getColor = () => '#b0b0b0';
-
-// Styling Helper Functions
-const getPriorityColor = (priority) => {
-  switch (priority) {
-    case 'HIGH': return 'bg-gradient-to-r from-red-500 to-red-600 text-white';
-    case 'MEDIUM': return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white';
-    case 'LOW': return 'bg-gradient-to-r from-green-500 to-green-600 text-white';
-    default: return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white';
-  }
-};
-
-const getPriorityBorderColor = (priority) => {
-  switch (priority) {
-    case 'HIGH': return 'border-red-500';
-    case 'MEDIUM': return 'border-yellow-500';
-    case 'LOW': return 'border-green-500';
-    default: return 'border-gray-500';
-  }
-};
 
 const getHighlightColor = (priority) => {
   switch (priority) {
@@ -146,8 +119,12 @@ const CustomModal = ({ isOpen, onClose, onConfirm, title, message, actionType, l
 };
 
 // Task Details Popup Component
-const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelete, moveLoading, deleteLoading, users }) => {
+const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelete, moveLoading, deleteLoading, users, opportunities }) => {
   const assignedUser = users?.find(user => user.id === task.assignedUserId);
+  const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+  const isTaskDone = task.statutTask === 'Done';
+  const isTaskCancelled = task.statutTask === 'Cancelled';
+  const canDelete = opportunity?.status && ["WON", "LOST"].includes(opportunity.status.toUpperCase());
 
   return (
     <div
@@ -183,7 +160,7 @@ const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelet
             <span>
               <span className="font-medium">Deadline: </span>
               {new Date(task.deadline).toLocaleString('en-GB', { 
-                timeZone: 'Europe/London', // GMT+1 during BST, adjust as needed
+                timeZone: 'Europe/London',
                 day: 'numeric', 
                 month: 'long', 
                 year: 'numeric',
@@ -217,9 +194,9 @@ const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelet
           </div>
           <div className="flex items-center space-x-3">
             <FaFolderOpen className="text-gray-400" />
-            <span className="font-medium">Opportunity: </span>
-            <span className="block break-words overflow-hidden text-gray-700">
-              {task.opportunityTitle || 'No opportunity'}
+            <span>
+              <span className="font-medium">Opportunity: </span>
+              {task.opportunityTitle || 'No opportunity'} {opportunity?.status ? `(${opportunity.status})` : ''}
             </span>
           </div>
           <div className="flex items-center space-x-3">
@@ -229,6 +206,52 @@ const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelet
               {task.typeTask}
             </span>
           </div>
+          <div className="flex items-center space-x-3">
+            <FaBuilding className="text-gray-400" />
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">Company: </span>
+              {task.companyPhotoUrl ? (
+                <img
+                  src={`http://localhost:8080${task.companyPhotoUrl}`}
+                  alt={task.companyName || 'Company'}
+                  className="w- -8 h-8 rounded-full shadow-md object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md bg-gray-400"
+                >
+                  {getInitials(task.companyName || 'Unknown')}
+                </div>
+              )}
+              <span>{task.companyName || 'No company'}</span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <FaUser className="text-gray-400" />
+            <div className="flex items-center space-x-2">
+              <span className="font-medium">Contact: </span>
+              {task.contactName ? (
+                <>
+                  {task.contactPhotoUrl ? (
+                    <img
+                      src={`http://localhost:8080${task.contactPhotoUrl}`}
+                      alt={task.contactName}
+                      className="w-8 h-8 rounded-full shadow-md object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md bg-gray-400"
+                    >
+                      {getInitials(task.contactName)}
+                    </div>
+                  )}
+                  <span>{task.contactName}</span>
+                </>
+              ) : (
+                <span>No contact</span>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             <span className="font-medium">Description:</span>
             <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg shadow-inner">
@@ -237,55 +260,98 @@ const TaskDetailsPopup = ({ task, show, onClose, column, onMove, onEdit, onDelet
           </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3 flex-wrap gap-2">
-          <button
-            onClick={() => onMove(task.id, 'Done')}
-            className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 flex items-center shadow-md"
-            disabled={moveLoading}
-          >
-            {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaCheck className="mr-2" />}
-            Done
-          </button>
-          <button
-            onClick={() => onMove(task.id, 'InProgress')}
-            className="px-4 py-2 bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 transition-all duration-200 flex items-center shadow-md"
-            disabled={moveLoading}
-          >
-            {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaTasks className="mr-2" />}
-            In Progress
-          </button>
-          <button
-            onClick={() => onMove(task.id, 'Cancelled')}
-            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 flex items-center shadow-md"
-            disabled={moveLoading}
-          >
-            {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaBan className="mr-2" />}
-            Cancel
-          </button>
-          <button
-            onClick={() => onEdit(task)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center shadow-md"
-          >
-            <FaEdit className="mr-2" />
-            Edit
-          </button>
-          <button
-            onClick={() => onDelete(task.id, column)}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 flex items-center shadow-md"
-            disabled={deleteLoading}
-          >
-            {deleteLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaTrash className="mr-2" />}
-            Delete
-          </button>
+          {column === 'InProgress' && (
+            <>
+              <button
+                onClick={() => onMove(task.id, 'Done')}
+                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 flex items-center shadow-md"
+                disabled={moveLoading}
+                title="Mark as Done"
+              >
+                {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaCheck className="mr-2" />}
+                Done
+              </button>
+              <button
+                onClick={() => onMove(task.id, 'Cancelled')}
+                className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 flex items-center shadow-md"
+                disabled={moveLoading}
+                title="Cancel"
+              >
+                {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaBan className="mr-2" />}
+                Cancel
+              </button>
+              <button
+                onClick={() => onEdit(task)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center shadow-md"
+                title="Edit"
+              >
+                <FaEdit className="mr-2" />
+                Edit
+              </button>
+            </>
+          )}
+          {column === 'ToDo' && (
+            <>
+              <button
+                onClick={() => onMove(task.id, 'InProgress')}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-xl hover:bg-yellow-700 transition-all duration-200 flex items-center shadow-md"
+                disabled={moveLoading}
+                title="Move to In Progress"
+              >
+                {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaTasks className="mr-2" />}
+                In Progress
+              </button>
+              <button
+                onClick={() => onMove(task.id, 'Cancelled')}
+                className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 flex items-center shadow-md"
+                disabled={moveLoading}
+                title="Cancel"
+              >
+                {moveLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaBan className="mr-2" />}
+                Cancel
+              </button>
+              <button
+                onClick={() => onEdit(task)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center shadow-md"
+                title="Edit"
+              >
+                <FaEdit className="mr-2" />
+                Edit
+              </button>
+              <button
+                onClick={() => onDelete(task.id, column)}
+                className={`px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 flex items-center shadow-md ${(deleteLoading || !canDelete) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={deleteLoading || !canDelete}
+                title={!canDelete ? 'Cannot delete: Opportunity is not won or lost' : 'Delete'}
+              >
+                {deleteLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaTrash className="mr-2" />}
+                Delete
+              </button>
+            </>
+          )}
+          {(column === 'Done' || column === 'Cancelled') && (
+            <button
+              onClick={() => onDelete(task.id, column)}
+              className={`px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 flex items-center shadow-md ${(deleteLoading || !canDelete) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={deleteLoading || !canDelete}
+              title={!canDelete ? 'Cannot delete: Opportunity is not won or lost' : 'Delete'}
+            >
+              {deleteLoading ? <FaSpinner className="animate-spin mr-2" /> : <FaTrash className="mr-2" />}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 };
-
 // Task Card Component (Kanban View)
-const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users }) => {
+const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users, opportunities }) => {
   const [showDetails, setShowDetails] = useState(false);
   const assignedUser = users?.find(user => user.id === task.assignedUserId);
+  const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+  const isTaskDone = task.statutTask === 'Done';
+  const isTaskCancelled = task.statutTask === 'Cancelled';
+  const canDelete = (opportunity?.status && ["WON", "LOST"].includes(opportunity.status.toUpperCase())|| task.statutTask ==='ToDo' &&opportunity?.status && ["IN_PROGRESS"].includes(opportunity.status.toUpperCase()));
 
   return (
     <>
@@ -322,7 +388,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users
           <div className="flex items-center space-x-2">
             <FaCalendarAlt className="text-gray-400" />
             <span>{new Date(task.deadline).toLocaleString('en-GB', { 
-              timeZone: 'Europe/London', // GMT+1 during BST, adjust as needed
+              timeZone: 'Europe/London',
               day: 'numeric', 
               month: 'long', 
               year: 'numeric',
@@ -351,7 +417,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users
           <div className="flex items-center space-x-2">
             <FaFolderOpen className="text-gray-400 w-4 h-4" />
             <span className="truncate block max-w-[90%] text-gray-700">
-              {task.opportunityTitle || 'No opportunity'}
+              {task.opportunityTitle || 'No opportunity'} {opportunity?.status ? `(${opportunity.status})` : ''}
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -361,31 +427,72 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users
         </div>
         <div className="mt-4">
           <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            {column !== 'Done' && (
-              <button
-                onClick={() => onMove(task.id, 'Done')}
-                className="p-2 text-green-600 hover:bg-green-100 rounded-xl transition-colors duration-200"
-                title="Mark as Done"
-              >
-                <FaCheck className="w-5 h-5" />
-              </button>
+            {column === 'InProgress' && (
+              <>
+                <button
+                  onClick={() => onMove(task.id, 'Done')}
+                  className="p-2 text-green-600 hover:bg-green-100 rounded-xl transition-colors duration-200"
+                  title="Mark as Done"
+                >
+                  <FaCheck className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onMove(task.id, 'Cancelled')}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors duration-200"
+                  title="Cancel Task"
+                >
+                  <FaBan className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onEdit(task)}
+                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors duration-200"
+                  title="Edit Task"
+                >
+                  <FaEdit className="w-5 h-5" />
+                </button>
+              </>
             )}
-            {column !== 'InProgress' && column !== 'Done' && column !== 'Cancelled' && (
-              <button
-                onClick={() => onMove(task.id, 'InProgress')}
-                className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-xl transition-colors duration-200"
-                title="Move to In Progress"
-              >
-                <FaTasks className="w-5 h-5" />
-              </button>
+            {column === 'ToDo' && (
+              <>
+                <button
+                  onClick={() => onMove(task.id, 'InProgress')}
+                  className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-xl transition-colors duration-200"
+                  title="Move to In Progress"
+                >
+                  <FaTasks className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onMove(task.id, 'Cancelled')}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors duration-200"
+                  title="Cancel Task"
+                >
+                  <FaBan className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onEdit(task)}
+                  className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors duration-200"
+                  title="Edit Task"
+                >
+                  <FaEdit className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onDelete(task.id, column)}
+                  className={`p-2 text-red-600 hover:bg-red-100 rounded-xl transition-colors duration-200 ${!canDelete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!canDelete}
+                  title={!canDelete ? 'Cannot delete: Opportunity is not won or lost' : 'Delete Task'}
+                >
+                  <FaTrash className="w-5 h-5" />
+                </button>
+              </>
             )}
-            {column !== 'Cancelled' && (
+            {(column === 'Done' || column === 'Cancelled') && (
               <button
-                onClick={() => onMove(task.id, 'Cancelled')}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors duration-200"
-                title="Cancel Task"
+                onClick={() => onDelete(task.id, column)}
+                className={`p-2 text-red-600 hover:bg-red-100 rounded-xl transition-colors duration-200 ${!canDelete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!canDelete}
+                title={!canDelete ? 'Cannot delete: Opportunity is not won or lost' : 'Delete Task'}
               >
-                <FaBan className="w-5 h-5" />
+                <FaTrash className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -402,11 +509,11 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users
         moveLoading={false}
         deleteLoading={false}
         users={users}
+        opportunities={opportunities}
       />
     </>
   );
 };
-
 // Add Task Modal Component
 const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = [], opportunities = [], loading, currentUser }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -437,6 +544,11 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
   const validateForm = () => {
     if (!newTask.opportunityId) {
       setErrorMessage("Please select an opportunity.");
+      return false;
+    }
+    const selectedOpportunity = opportunities.find(op => op.id === newTask.opportunityId);
+    if (selectedOpportunity?.status && ["CLOSED", "WON", "LOST"].includes(selectedOpportunity.status.toUpperCase())) {
+      setErrorMessage("Cannot create task: Opportunity is closed, won, or lost.");
       return false;
     }
     if (!newTask.assignedUserId) {
@@ -591,7 +703,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
                       className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showDropdown ? 'rotate-180' : ''}`}
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      viewBox="0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -656,7 +768,9 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
             >
               <option value="">Select an opportunity</option>
               {opportunities.map(opportunity => (
-                <option key={opportunity.id} value={opportunity.id}>{opportunity.title}</option>
+                <option key={opportunity.id} value={opportunity.id}>
+                  {opportunity.title} {opportunity.status ? `(${opportunity.status})` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -730,6 +844,10 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
       setErrorMessage("Please assign a user to the task.");
       return false;
     }
+    if (editTask.statutTask === 'Done' || editTask.statutTask === 'Cancelled') {
+      setErrorMessage(`Cannot edit task: Task is in ${editTask.statutTask} status.`);
+      return false;
+    }
     return true;
   };
 
@@ -743,6 +861,7 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
   if (!show || !editTask) return null;
 
   const isRegularUser = currentUser?.role === "User";
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin';
 
   return (
     <div
@@ -880,7 +999,7 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
                       className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showDropdown ? 'rotate-180' : ''}`}
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      viewBox="0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -942,10 +1061,13 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
               onChange={(e) => setEditTask({ ...editTask, opportunityId: e.target.value })}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               required
+              disabled={editTask.statutTask === 'InProgress'}
             >
               <option value="">Select an opportunity</option>
               {opportunities.map(opportunity => (
-                <option key={opportunity.id} value={opportunity.id}>{opportunity.title}</option>
+                <option key={opportunity.id} value={opportunity.id}>
+                  {opportunity.title} {opportunity.status ? `(${opportunity.status})` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -983,6 +1105,336 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
   );
 };
 
+// Helper function to get priority colors
+const getPriorityColor = (priority) => {
+  switch (priority) {
+    case 'HIGH': return 'bg-gradient-to-r from-red-500 to-red-600 text-white';
+    case 'MEDIUM': return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white';
+    case 'LOW': return 'bg-gradient-to-r from-green-500 to-green-600 text-white';
+    default: return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white';
+  }
+};
+
+const getPriorityBorderColor = (priority) => {
+  switch (priority) {
+    case 'HIGH': return 'border-red-500';
+    case 'MEDIUM': return 'border-yellow-500';
+    case 'LOW': return 'border-green-500';
+    default: return 'border-gray-500';
+  }
+};
+
+const getInitials = (name = '') => {
+  if (!name) return '??';
+  const names = name.split(' ');
+  return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+};
+
+const getColor = () => '#b0b0b0';
+
+// Utility to sanitize and validate image URLs
+const getSafeImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  // Avoid double prefixing if URL is already absolute
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // Ensure URL starts with a slash
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `http://localhost:8080${cleanUrl}`;
+};
+
+// Archived Tasks Modal Component
+const ArchivedTasksModal = ({ show, onClose, groupedTasks, loading, users = [] }) => {
+  const [expandedOpportunities, setExpandedOpportunities] = useState({});
+
+  // Debug task data
+  useEffect(() => {
+    if (groupedTasks) {
+      console.log('Grouped Tasks:', groupedTasks);
+      Object.values(groupedTasks).forEach(({ tasks }) => {
+        tasks.forEach(task => {
+          const assignedUser = users.find(user => user.id === task.assignedUserId);
+          console.log(`Task ${task.id}:`, {
+            companyPhotoUrl: task.companyPhotoUrl,
+            contactPhotoUrl: task.contactPhotoUrl,
+            profilePhotoUrl: task.assignedUserProfilePhotoUrl,
+            assignedUserId: task.assignedUserId,
+            assignedUserUsername: task.assignedUserUsername,
+            completedAt: task.completedAt
+          });
+        });
+      });
+    }
+  }, [groupedTasks, users]);
+
+  if (!show) return null;
+
+  const toggleOpportunity = (oppId) => {
+    setExpandedOpportunities(prev => ({
+      ...prev,
+      [oppId]: !prev[oppId]
+    }));
+  };
+
+  const getPriorityBorderColor = (priority) => {
+    switch (priority) {
+      case 'HIGH': return 'border-red-500';
+      case 'MEDIUM': return 'border-yellow-500';
+      case 'LOW': return 'border-green-500';
+      default: return 'border-gray-500';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'HIGH': return 'bg-gradient-to-r from-red-500 to-red-600 text-white';
+      case 'MEDIUM': return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white';
+      case 'LOW': return 'bg-gradient-to-r from-green-500 to-green-600 text-white';
+      default: return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'ToDo': return 'bg-blue-200';
+      case 'InProgress': return 'bg-yellow-50';
+      case 'Done': return 'bg-green-200';
+      case 'Cancelled': return 'bg-gray-200';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getInitials = (name = '') => {
+    if (!name) return '??';
+    const names = name.split(' ');
+    return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getColor = () => '#b0b0b0';
+
+  const getSafeImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    return `http://localhost:8080${cleanUrl}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 transition-opacity duration-300">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-4xl h-[80vh] overflow-y-auto transform transition-all duration-300 scale-95 animate-scaleIn">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+            <FaArchive className="mr-2 text-gray-600" /> Archived Tasks
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-500 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors duration-200"
+          >
+            <FaTimes className="w-5 h-5" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <FaSpinner className="animate-spin text-4xl text-gray-500" />
+          </div>
+        ) : Object.keys(groupedTasks).length === 0 ? (
+          <div className="text-center text-gray-500">
+            <FaExclamationCircle className="text-2xl mb-2" />
+            <p>No archived tasks found</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {Object.entries(groupedTasks).map(([oppId, { opportunityTitle, tasks }]) => (
+              <div key={oppId} className="bg-gray-50 rounded-xl shadow-md">
+                <button
+                  onClick={() => toggleOpportunity(oppId)}
+                  className="w-full flex justify-between items-center p-4 text-left bg-gradient-to-r from-gray-100 to-gray-200 rounded-t-xl hover:bg-gray-300 transition-all duration-200"
+                >
+                  <h3 className="text-lg font-semibold text-gray-800 truncate">
+                    {opportunityTitle}
+                  </h3>
+                  <span className="flex items-center">
+                    <span className="mr-2 text-sm text-gray-600">
+                      {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                    </span>
+                    {expandedOpportunities[oppId] ? (
+                      <FaChevronUp className="text-gray-600" />
+                    ) : (
+                      <FaChevronDown className="text-gray-600" />
+                    )}
+                  </span>
+                </button>
+                {expandedOpportunities[oppId] && (
+                  <div className="p-4 space-y-4 animate-slideIn">
+                    {tasks.map(task => {
+                      const assignedUser = users.find(user => user.id === task.assignedUserId);
+                      return (
+                        <div
+                          key={task.id}
+                          className={`group relative px-6 py-4 bg-white rounded-xl shadow-lg border-l-4 ${getPriorityBorderColor(task.priority)} 
+                            hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex flex-col w-full max-w-full`}
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1 pr-4">
+                              <h4 className={`relative group text-lg font-semibold text-gray-800 max-w-[8ch] truncate ${task.statutTask === 'Cancelled' ? 'line-through' : ''}`}>
+                                {task.title.length > 8 ? task.title.slice(0, 8) + "..." : task.title}
+                                <small className="absolute left-0 top-full mt-1 w-max max-w-xs bg-gray-800 text-white text-xs p-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  {task.title}
+                                </small>
+                              </h4>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span
+                                className={`px-3 py-1 text-xs font-medium rounded-xl shadow-sm ${getPriorityColor(task.priority)}`}
+                              >
+                                {task.priority}
+                              </span>
+                              <span
+                                className={`px-3 py-1 text-xs font-medium rounded-xl shadow-sm ${getStatusColor(task.statutTask)} text-gray-700`}
+                              >
+                                {task.statutTask}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="space-y-2 text-sm text-gray-500 flex-1">
+                            <div className="flex items-center space-x-2">
+                              <FaCalendarAlt className="text-gray-400" />
+                              <span>
+                                {new Date(task.deadline).toLocaleString('en-GB', {
+                                  timeZone: 'Europe/London',
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            {task.completedAt && (
+                              <div className="flex items-center space-x-2">
+                                <FaCheckCircle className="text-gray-400" />
+                                <span>
+                                  Completed: {new Date(task.completedAt).toLocaleString('en-GB', {
+                                    timeZone: 'Europe/London',
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <FaUser className="text-gray-400" />
+                              <div
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden"
+                                style={{ backgroundColor: task.assignedUserProfilePhotoUrl ? 'transparent' : getColor() }}
+                              >
+                                {task.assignedUserProfilePhotoUrl ? (
+                                  <img
+                                    src={getSafeImageUrl(task.assignedUserProfilePhotoUrl)}
+                                    alt={task.assignedUserUsername || 'Unassigned'}
+                                    className="w-6 h-6 rounded-full shadow-md object-cover"
+                                    onError={(e) => {
+                                      console.error(`Failed to load assigned user image for task ${task.id}:`, e);
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : (
+                                  getInitials(task.assignedUserUsername || 'Unassigned')
+                                )}
+                              </div>
+                              <span>{task.assignedUserUsername || 'Unassigned'}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <FaFolderOpen className="text-gray-400 w-4 h-4" />
+                              <span className="truncate block max-w-[90%] text-gray-700">
+                                {task.opportunityTitle || 'No opportunity'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <FaTag className="text-gray-400" />
+                              <span>{task.typeTask}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <FaBuilding className="text-gray-400" />
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">Company: </span>
+                                {task.companyPhotoUrl ? (
+                                  <img
+                                    src={getSafeImageUrl(task.companyPhotoUrl)}
+                                    alt={task.companyName || 'Company'}
+                                    className="w-6 h-6 rounded-full shadow-md object-cover"
+                                    onError={(e) => {
+                                      console.error(`Failed to load company image for task ${task.id}:`, e);
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold shadow-md bg-gray-400"
+                                  >
+                                    {getInitials(task.companyName || 'Unknown')}
+                                  </div>
+                                )}
+                                <span>{task.companyName || 'No company'}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <FaUser className="text-gray-400" />
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">Contact: </span>
+                                {task.contactName ? (
+                                  <>
+                                    {task.contactPhotoUrl ? (
+                                      <img
+                                        src={getSafeImageUrl(task.contactPhotoUrl)}
+                                        alt={task.contactName}
+                                        className="w-6 h-6 rounded-full shadow-md object-cover"
+                                        onError={(e) => {
+                                          console.error(`Failed to load contact image for task ${task.id}:`, e);
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div
+                                        className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold shadow-md bg-gray-400"
+                                      >
+                                        {getInitials(task.contactName)}
+                                      </div>
+                                    )}
+                                    <span>{task.contactName}</span>
+                                  </>
+                                ) : (
+                                  <span>No contact</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <span className="font-medium">Description:</span>
+                              <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg shadow-inner">
+                                {task.description || 'No description'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 // Main Tasks Component
 const Tasks = () => {
   const [tasks, setTasks] = useState({ ToDo: [], InProgress: [], Done: [], Cancelled: [] });
@@ -993,8 +1445,12 @@ const Tasks = () => {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchivedTasksModal, setShowArchivedTasksModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [opportunityFilter, setOpportunityFilter] = useState('');
+  const [opportunitySearch, setOpportunitySearch] = useState('');
+  const [showOpportunityDropdown, setShowOpportunityDropdown] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [message, setMessage] = useState(null);
@@ -1017,14 +1473,23 @@ const Tasks = () => {
   const { data: tasksData, isLoading, error: tasksError } = useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
-      const response = await api.get('/tasks/all');
-      return response.data.content.reduce((acc, task) => {
-        const status = task.statutTask || 'ToDo';
-        acc[status] = [...(acc[status] || []), task];
-        return acc;
-      }, { ToDo: [], InProgress: [], Done: [], Cancelled: [] });
+      try {
+        const response = await api.get('/tasks/all');
+        if (!response.data.content) {
+          return { ToDo: [], InProgress: [], Done: [], Cancelled: [] };
+        }
+        return response.data.content.reduce((acc, task) => {
+          const status = task.statutTask || 'ToDo';
+          acc[status] = [...(acc[status] || []), task];
+          return acc;
+        }, { ToDo: [], InProgress: [], Done: [], Cancelled: [] });
+      } catch (err) {
+        throw err;
+      }
     },
     onError: (err) => {
+      setMessage(`Failed to load tasks: ${err.response?.data?.message || err.message}`);
+      setMessageType('error');
       if (err.response?.status === 401) navigate('/login');
     },
   });
@@ -1045,13 +1510,22 @@ const Tasks = () => {
     },
   });
 
+  const { data: archivedTasks, isLoading: archivedLoading } = useQuery({
+    queryKey: ['archivedTasks'],
+    queryFn: async () => {
+      const response = await api.get('/tasks/filter?archived=true&page=0&size=1000');
+      return response.data.content;
+    },
+    enabled: showArchivedTasksModal,
+  });
+
   const addTaskMutation = useMutation({
     mutationFn: async (task) => {
       const response = await api.post(
         `/tasks/add?opportunityId=${task.opportunityId}&assignedUserId=${task.assignedUserId}`,
         {
           ...task,
-          deadline: new Date(task.deadline).toISOString() // Convert to UTC for backend
+          deadline: new Date(task.deadline).toISOString()
         }
       );
       return response.data;
@@ -1077,7 +1551,7 @@ const Tasks = () => {
         {
           title: task.title,
           description: task.description || '',
-          deadline: new Date(task.deadline).toISOString(), // Convert to UTC for backend
+          deadline: new Date(task.deadline).toISOString(),
           priority: task.priority,
           typeTask: task.typeTask,
           opportunity: { id: task.opportunityId },
@@ -1132,6 +1606,49 @@ const Tasks = () => {
     },
   });
 
+  // Group archived tasks by opportunity
+  const groupedArchivedTasks = useMemo(() => {
+    if (!archivedTasks) return {};
+    return archivedTasks.reduce((acc, task) => {
+      const oppId = task.opportunityId;
+      if (!acc[oppId]) {
+        acc[oppId] = {
+          opportunityTitle: task.opportunityTitle,
+          tasks: [],
+        };
+      }
+      acc[oppId].tasks.push(task);
+      return acc;
+    }, {});
+  }, [archivedTasks]);
+
+  // Filter opportunities based on search term
+  const filteredOpportunities = opportunities?.filter(opportunity =>
+    opportunity.title.toLowerCase().includes(opportunitySearch.toLowerCase())
+  ) || [];
+
+  // Get the selected opportunity's title for display
+  const selectedOpportunity = opportunities?.find(op => op.id === opportunityFilter);
+
+  // Handlers for opportunity search and selection
+  const handleOpportunitySearch = (e) => {
+    const query = e.target.value;
+    setOpportunitySearch(query);
+    setShowOpportunityDropdown(true);
+  };
+
+  const handleOpportunitySelect = (opportunityId) => {
+    setOpportunityFilter(opportunityId);
+    setOpportunitySearch('');
+    setShowOpportunityDropdown(false);
+  };
+
+  const handleClearOpportunity = () => {
+    setOpportunityFilter('');
+    setOpportunitySearch('');
+    setShowOpportunityDropdown(false);
+  };
+
   // Effects
   useEffect(() => {
     if (tasksData) {
@@ -1173,16 +1690,40 @@ const Tasks = () => {
   };
 
   const handleMoveTask = (taskId, newStatus) => {
+    const task = Object.values(tasks).flat().find(t => t.id === taskId);
+    const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+    if (opportunity?.status && ["CLOSED", "WON", "LOST"].includes(opportunity.status.toUpperCase())) {
+      setMessage('Cannot move task: Opportunity is closed, won, or lost.');
+      setMessageType('error');
+      return;
+    }
     moveTaskMutation.mutate({ taskId, newStatus });
   };
 
   const handleDeleteTask = (taskId, column) => {
+    const task = Object.values(tasks).flat().find(t => t.id === taskId);
+    const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+    if ((task.statutTask === 'Done' || task.statutTask === 'Cancelled') && 
+        opportunity?.status && !["WON", "LOST","IN_PROGRESS"].includes(opportunity.status.toUpperCase())) {
+      setMessage('Cannot delete task: Opportunity is not won or lost.');
+      setMessageType('error');
+      return;
+    }
     setTaskToDelete({ id: taskId, column });
     setShowDeleteModal(true);
   };
 
   const confirmDeleteTask = () => {
     if (!taskToDelete) return;
+    const task = Object.values(tasks).flat().find(t => t.id === taskToDelete.id);
+    const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+    if (opportunity?.status && ["IN_PROGRESS", "WON", "LOST"].includes(opportunity.status.toUpperCase())) {
+      setMessage('Cannot delete task: Opportunity is closed, won, or lost.');
+      setMessageType('error');
+      setShowDeleteModal(false);
+      setTaskToDelete(null);
+      return;
+    }
     deleteTaskMutation.mutate(taskToDelete.id);
   };
 
@@ -1196,6 +1737,12 @@ const Tasks = () => {
       hour: '2-digit',
       minute: '2-digit'
     }).replace(' ', 'T');
+    const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+    if (opportunity?.status && ["WON", "LOST"].includes(opportunity.status.toUpperCase())) {
+      setMessage('Cannot edit task: Opportunity is closed');
+      setMessageType('error');
+      return;
+    }
     setEditTask({
       id: task.id,
       title: task.title,
@@ -1211,9 +1758,12 @@ const Tasks = () => {
   };
 
   const filteredTasks = (tasksList) => {
-    let filtered = tasksList;
+    let filtered = tasksList.filter(task => task.archived === false); // Explicitly include only non-archived tasks
     if (filter !== 'all') {
       filtered = filtered.filter(task => task.priority.toLowerCase() === filter);
+    }
+    if (opportunityFilter) {
+      filtered = filtered.filter(task => task.opportunityId === opportunityFilter);
     }
     if (searchQuery) {
       filtered = filtered.filter(task => 
@@ -1266,6 +1816,12 @@ const Tasks = () => {
           >
             <FaPlus className="mr-2" /> New Task
           </button>
+          <button
+            onClick={() => setShowArchivedTasksModal(true)}
+            className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 flex items-center shadow-lg transition-all duration-300 transform hover:scale-105"
+          >
+            <FaArchive className="mr-2" /> Archived Tasks
+          </button>
           <div className="relative">
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -1274,18 +1830,71 @@ const Tasks = () => {
               <FaFilter className="mr-2" /> Filter
             </button>
             {isFilterOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-20 animate-dropIn">
-                {['all', 'high', 'medium', 'low'].map(f => (
-                  <button
-                    key={f}
-                    onClick={() => { setFilter(f); setIsFilterOpen(false); }}
-                    className={`w-full text-left px-5 py-3 text-gray-700 hover:bg-blue-50 transition-colors duration-200 
-                      ${filter === f ? 'bg-blue-50 text-blue-700 font-semibold' : ''} 
-                      ${f === 'all' ? 'rounded-t-xl' : ''} ${f === 'low' ? 'rounded-b-xl' : ''}`}
+              <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-20 animate-dropIn p-4">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   >
-                    {f === 'all' ? 'All Tasks' : `Priority ${f.charAt(0).toUpperCase() + f.slice(1)}`}
-                  </button>
-                ))}
+                    <option value="all">All Priorities</option>
+                    <option value="high">Priority High</option>
+                    <option value="medium">Priority Medium</option>
+                    <option value="low">Priority Low</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Opportunity</label>
+                  {opportunityFilter && (
+                    <div className="flex items-center justify-between bg-gray-50 p-2 rounded-lg mb-2">
+                      <span className="text-gray-700 truncate">
+                        {selectedOpportunity?.title} {selectedOpportunity?.status ? `(${selectedOpportunity.status})` : ''}
+                      </span>
+                      <button
+                        onClick={handleClearOpportunity}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <FaTimes className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={opportunitySearch}
+                      onChange={handleOpportunitySearch}
+                      onFocus={() => setShowOpportunityDropdown(true)}
+                      placeholder="Search opportunities..."
+                      className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    />
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    {showOpportunityDropdown && filteredOpportunities.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                        {filteredOpportunities.map((opportunity) => (
+                          <div
+                            key={opportunity.id}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-700"
+                            onClick={() => handleOpportunitySelect(opportunity.id)}
+                          >
+                            {opportunity.title} {opportunity.status ? `(${opportunity.status})` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {showOpportunityDropdown && opportunitySearch && filteredOpportunities.length === 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 text-gray-500">
+                        No opportunities found
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="mt-4 w-full px-4 py-2 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 rounded-xl hover:from-gray-300 hover:to-gray-400 shadow-md transition-all duration-200"
+                >
+                  Close
+                </button>
               </div>
             )}
           </div>
@@ -1328,6 +1937,7 @@ const Tasks = () => {
                       column={column}
                       isHighlighted={task.id.toString() === highlightedTaskId}
                       users={users || []}
+                      opportunities={opportunities || []}
                     />
                   ))
                 )}
@@ -1367,6 +1977,12 @@ const Tasks = () => {
         message="Are you sure you want to delete this task? This action cannot be undone."
         actionType="delete"
         loading={deleteTaskMutation.isLoading}
+      />
+      <ArchivedTasksModal
+        show={showArchivedTasksModal}
+        onClose={() => setShowArchivedTasksModal(false)}
+        groupedTasks={groupedArchivedTasks}
+        loading={archivedLoading}
       />
     </div>
   );

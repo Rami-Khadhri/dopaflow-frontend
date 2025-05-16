@@ -1672,7 +1672,7 @@ const Opportunities = () => {
           onClick={() => setExpandedOpportunityId(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg transform transition-all duration-300 scale-95 animate-scaleIn"
+            className="bg-white rounded-2xl shadow-2xl p-0 w-full max-w-lg transform transition-all duration-300 scale-95 animate-scaleIn"
             onClick={(e) => e.stopPropagation()}
           >
             <OpportunityDetails

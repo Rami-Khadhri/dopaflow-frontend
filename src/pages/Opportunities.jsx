@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaTasks, FaExclamationCircle, FaArrowUp, FaArrowDown, FaArrowLeft, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
+  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaTasks, FaExclamationCircle, FaArrowUp, FaArrowDown, FaBuilding,FaArrowLeft, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
   FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt, FaArchive
 } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,8 +18,8 @@ const Opportunities = () => {
   const [stages, setStages] = useState([
     { id: 1, name: 'Prospection', opportunities: [], color: 'bg-blue-100' },
     { id: 2, name: 'Qualification', opportunities: [], color: 'bg-yellow-100' },
-    { id: 3, name: 'Négociation', opportunities: [], color: 'bg-orange-100' },
-    { id: 4, name: 'Clôturé', opportunities: [], color: 'bg-green-100' },
+    { id: 3, name: 'Negotiation', opportunities: [], color: 'bg-orange-100' },
+    { id: 4, name: 'Closed', opportunities: [], color: 'bg-green-100' },
   ]);
   const [allOpportunities, setAllOpportunities] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -65,8 +65,8 @@ const Opportunities = () => {
   const stageMapping = {
     PROSPECTION: 'Prospection',
     QUALIFICATION: 'Qualification',
-    NEGOTIATION: 'Négociation',
-    CLOSED: 'Clôturé',
+    NEGOTIATION: 'Negotiation',
+    CLOSED: 'Closed',
   };
 
   const priorityMapping = {
@@ -1766,87 +1766,89 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
   const stageMapping = {
     PROSPECTION: 'Prospection',
     QUALIFICATION: 'Qualification',
-    NEGOTIATION: 'Négociation',
-    CLOSED: 'Clôturé',
-  };
-// Define TaskCard component outside Opportunities
-const TaskCard = ({ task }) => {
-  const priorityColors = {
-    HIGH: 'bg-red-500 text-white',
-    MEDIUM: 'bg-yellow-500 text-white',
-    LOW: 'bg-green-500 text-white',
+    NEGOTIATION: 'Negotiation',
+    CLOSED: 'Closed',
   };
 
-  const statusColors = {
-    ToDo: 'bg-blue-100 text-blue-800',
-    InProgress: 'bg-yellow-100 text-yellow-800',
-    Done: 'bg-green-100 text-green-800',
-    Cancelled: 'bg-gray-100 text-gray-800',
-  };
-
-  const getInitials = (name = '') => {
-    if (!name) return '??';
-    const names = name.split(' ');
-    return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
-  };
-
-  return (
-    <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all duration-200">
-      <div className="flex justify-between items-start mb-3">
-        <h4 className="text-lg font-semibold text-gray-800 truncate">{task.title}</h4>
-        <span className={`px-2 py-1 text-xs font-medium rounded-xl ${priorityColors[task.priority]}`}>
-          {task.priority}
-        </span>
-      </div>
-      <p className="text-sm text-gray-600 mb-3">{task.description || 'No description'}</p>
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="flex items-center space-x-2">
-          <FaTag className="text-gray-400" />
-          <span className="text-sm text-gray-700">{task.typeTask}</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <FaTasks className="text-gray-400" />
-          <span className={`px-2 py-1 text-xs font-medium rounded-xl ${statusColors[task.statutTask]}`}>
-            {task.statutTask}
+  // Fallback color generator if getColor is not defined
+  const getColor = () => '#b0b0b0'; 
+  const TaskCard = ({ task }) => {
+    const priorityColors = {
+      HIGH: 'bg-red-500 text-white',
+      MEDIUM: 'bg-yellow-500 text-white',
+      LOW: 'bg-green-500 text-white',
+    };
+  
+    const statusColors = {
+      ToDo: 'bg-blue-100 text-blue-800',
+      InProgress: 'bg-yellow-100 text-yellow-800',
+      Done: 'bg-green-100 text-green-800',
+      Cancelled: 'bg-gray-100 text-gray-800',
+    };
+  
+    const getInitials = (name = '') => {
+      if (!name) return '??';
+      const names = name.split(' ');
+      return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+    };
+  
+    return (
+      <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all duration-200">
+        <div className="flex justify-between items-start mb-3">
+          <h4 className="text-lg font-semibold text-gray-800 truncate">{task.title}</h4>
+          <span className={`px-2 py-1 text-xs font-medium rounded-xl ${priorityColors[task.priority]}`}>
+            {task.priority}
           </span>
         </div>
-        <div className="flex items-center space-x-2">
-          <FaArchive className="text-gray-400" />
-          <span className={task.archived ? 'text-red-600' : 'text-green-600'}>
-            {task.archived ? 'Archived' : 'Active'}
-          </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <FaUser className="text-gray-400" />
+        <p className="text-sm text-gray-600 mb-3">{task.description || 'No description'}</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <div className="flex items-center space-x-2">
-            {task.assignedUserProfilePhotoUrl ? (
-              <img
-                src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
-                alt={task.assignedUserUsername}
-                className="h-6 w-6 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
-                {getInitials(task.assignedUserUsername)}
-              </div>
-            )}
-            <span className="text-sm text-gray-700">{task.assignedUserUsername || 'Unassigned'}</span>
+            <FaTag className="text-gray-400" />
+            <span className="text-sm text-gray-700">{task.typeTask}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaTasks className="text-gray-400" />
+            <span className={`px-2 py-1 text-xs font-medium rounded-xl ${statusColors[task.statutTask]}`}>
+              {task.statutTask}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaArchive className="text-gray-400" />
+            <span className={task.archived ? 'text-red-600' : 'text-green-600'}>
+              {task.archived ? 'Archived' : 'Active'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaUser className="text-gray-400" />
+            <div className="flex items-center space-x-2">
+              {task.assignedUserProfilePhotoUrl ? (
+                <img
+                  src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
+                  alt={task.assignedUserUsername}
+                  className="h-6 w-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                  {getInitials(task.assignedUserUsername)}
+                </div>
+              )}
+              <span className="text-sm text-gray-700">{task.assignedUserUsername || 'Unassigned'}</span>
+            </div>
           </div>
         </div>
+        {task.completedAt && (
+          <div className="flex items-center space-x-2">
+            <FaCalendarAlt className="text-gray-400" />
+            <span className="text-sm text-gray-500">
+              Completed: {new Date(task.completedAt).toLocaleDateString()}
+            </span>
+          </div>
+        )}
       </div>
-      {task.completedAt && (
-        <div className="flex items-center space-x-2">
-          <FaCalendarAlt className="text-gray-400" />
-          <span className="text-sm text-gray-500">
-            Completed: {new Date(task.completedAt).toLocaleDateString()}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-};
+    );
+  };
   return (
-    <div className="relative w-full max-w-xl h-[600px] bg-white rounded-xl shadow-2xl p-12">
+    <div className="relative w-full max-w-xl h-[620px] bg-white rounded-xl shadow-2xl p-12">
       <div className="absolute inset-4 overflow-hidden">
         <div
           className={`absolute inset-0 transition-transform duration-500 ease-in-out ${
@@ -1885,11 +1887,48 @@ const TaskCard = ({ task }) => {
             </div>
             <div className="flex items-center gap-3">
               <FaUser className="text-gray-400 text-base" />
-              <span>
+              <div className="flex items-center gap-2">
                 <span className="font-medium text-base">Contact: </span>
-                {opportunity.contact?.name || 'None'}
-              </span>
+                {opportunity.contact ? (
+                  <div className="flex items-center gap-2">
+                    {opportunity.contact.photoUrl ? (
+                      <img
+                        src={`http://localhost:8080${opportunity.contact.photoUrl}`}
+                        alt={opportunity.contact.name}
+                        className="h-8 w-8 rounded-full object-cover border border-gray-300 shadow-sm"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: getColor() }}>
+                        {getInitials(opportunity.contact.name)}
+                      </div>
+                    )}
+                    <span className="text-base">{opportunity.contact.name}</span>
+                  </div>
+                ) : (
+                  <span>None</span>
+                )}
+              </div>
             </div>
+            {opportunity.contact?.company && (
+              <div className="flex items-center gap-3">
+                <FaBuilding className="text-gray-400 text-base" />
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-base">Company: </span>
+                  {opportunity.contact.company.photoUrl ? (
+                    <img
+                      src={`http://localhost:8080${opportunity.contact.company.photoUrl}`}
+                      alt={opportunity.contact.company.name}
+                      className="h-8 w-8 rounded-full object-cover border border-gray-300 shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ backgroundColor: getColor() }}>
+                      {getInitials(opportunity.contact.company.name)}
+                    </div>
+                  )}
+                  <span className="text-base">{opportunity.contact.company.name}</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <FaUser className="text-gray-400 text-base" />
               <div className="flex items-center gap-2">
@@ -1910,7 +1949,7 @@ const TaskCard = ({ task }) => {
             </div>
             <div className="flex items-center gap-3">
               <FaList className="text-gray-400 text-base" />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <span className="font-medium text-base">Stage: </span>
                 {(isOwner || isSuperAdmin) ? (
                   <select
@@ -1958,7 +1997,7 @@ const TaskCard = ({ task }) => {
                     </button>
                   </>
                 ) : null}
-              </div>
+               </div>
             </div>
             <div className="flex items-center gap-3">
               <FaCheck className="text-gray-400 text-base" />
@@ -1988,7 +2027,7 @@ const TaskCard = ({ task }) => {
               </span>
             </div>
           </div>
-          <div className="mt-8 flex justify-between gap-4">
+          <div className="mt-10 flex justify-between gap-4">
             <button
               onClick={() => setShowTasks(true)}
               className="flex items-center px-5 py-2 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"

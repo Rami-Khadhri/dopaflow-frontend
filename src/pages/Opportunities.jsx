@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaTasks,FaExclamationCircle, FaArrowUp, FaArrowDown, FaArrowLeft,FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
-  FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt
+  FaPlus, FaEdit, FaTrash, FaChartLine, FaSearch, FaFilter, FaTasks, FaExclamationCircle, FaArrowUp, FaArrowDown, FaArrowLeft, FaTimes, FaSpinner, FaExpand, FaSortUp, FaSortDown, FaUndo, FaCheck,
+  FaTag, FaUser, FaList, FaChartBar, FaCalendarAlt, FaArchive
 } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
 import debounce from 'lodash/debounce';
 import api from '../utils/api';
 import LoadingIndicator from '../pages/LoadingIndicator';
-
 
 const Opportunities = () => {
   const location = useLocation();
@@ -59,7 +58,6 @@ const Opportunities = () => {
   const [tasksByOpportunity, setTasksByOpportunity] = useState({});
   const [loadingTasks, setLoadingTasks] = useState({});
   const [taskModalOpportunityId, setTaskModalOpportunityId] = useState(null);
-
   const formRef = useRef(null);
   const dropdownRef = useRef(null);
   const [cachedOpportunities, setCachedOpportunities] = useState(null);
@@ -101,6 +99,21 @@ const Opportunities = () => {
       setIsContactLoading(false);
     }
   }, [formData.contactId, contacts]);
+
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await api.get('/users/me');
+        setCurrentUser(response.data);
+      } catch (error) {
+        console.error('Failed to fetch current user:', error);
+        setErrorMessage('Failed to fetch user data. Please try again.');
+      }
+    };
+    fetchCurrentUser();
+  }, []);
 
   const MessageDisplay = ({ message, type, onClose }) => {
     if (!message) return null;
@@ -192,6 +205,11 @@ const Opportunities = () => {
         setCachedOpportunities(opportunities);
       }
 
+      opportunities = opportunities.map(opp => ({
+        ...opp,
+        owner: opp.owner || { id: null, username: 'None' }
+      }));
+
       setAllOpportunities(opportunities);
       applyFilters(opportunities);
 
@@ -233,11 +251,23 @@ const Opportunities = () => {
   };
 
   const fetchTasks = async (opportunityId) => {
+    if (!currentUser) {
+      setErrorMessage('User data not loaded. Please try again later.');
+      return;
+    }
     if (tasksByOpportunity[opportunityId]) return;
     setLoadingTasks(prev => ({ ...prev, [opportunityId]: true }));
     try {
       const response = await api.get(`/tasks/opportunity/${opportunityId}`);
-      const tasks = response.data;
+      let tasks = response.data;
+
+      if (currentUser.role === 'User') {
+        const opportunity = allOpportunities.find(opp => opp.id === opportunityId);
+        if (opportunity.owner?.id !== currentUser.id) {
+          tasks = tasks.filter(task => Number(task.assignedUserId) === Number(currentUser.id));
+        }
+      }
+
       setTasksByOpportunity(prev => ({ ...prev, [opportunityId]: tasks }));
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
@@ -565,59 +595,81 @@ const Opportunities = () => {
     setExpandedOpportunityId(null);
   };
 
-  const TaskCard = ({ task }) => (
-    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200 space-y-2">
-      <div>
-        <span className="font-medium text-gray-700">Title: </span>
-        <span className="text-gray-800">{task.title}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Description: </span>
-        <span className="text-gray-600">{task.description || 'No description'}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Priority: </span>
-        <span className={`px-2 py-1 text-xs rounded-xl ${priorityColors[task.priority]}`}>
-          {priorityMapping[task.priority]}
-        </span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Type: </span>
-        <span className="text-gray-700">{task.typeTask}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Status: </span>
-        <span className="text-gray-700">{task.statutTask}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Archived: </span>
-        <span className={task.archived ? 'text-red-600' : 'text-green-600'}>{task.archived ? 'Yes' : 'No'}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700">Assigned to: </span>
-        <div className="inline-flex items-center space-x-2">
-          {task.assignedUserProfilePhotoUrl ? (
-            <img
-              src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
-              alt={task.assignedUserUsername}
-              className="h-6 w-6 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
-              {getInitials(task.assignedUserUsername)}
+  const TaskCard = ({ task }) => {
+    const priorityColors = {
+      HIGH: 'bg-red-500 text-white',
+      MEDIUM: 'bg-yellow-500 text-white',
+      LOW: 'bg-green-500 text-white',
+    };
+
+    const statusColors = {
+      ToDo: 'bg-blue-100 text-blue-800',
+      InProgress: 'bg-yellow-100 text-yellow-800',
+      Done: 'bg-green-100 text-green-800',
+      Cancelled: 'bg-gray-100 text-gray-800',
+    };
+
+    const getInitials = (name = '') => {
+      if (!name) return '??';
+      const names = name.split(' ');
+      return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+    };
+
+    return (
+      <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all duration-200">
+        <div className="flex justify-between items-start mb-3">
+          <h4 className="text-lg font-semibold text-gray-800 truncate">{task.title}</h4>
+          <span className={`px-2 py-1 text-xs font-medium rounded-xl ${priorityColors[task.priority]}`}>
+            {task.priority}
+          </span>
+        </div>
+        <p className="text-sm text-gray-600 mb-3">{task.description || 'No description'}</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="flex items-center space-x-2">
+            <FaTag className="text-gray-400" />
+            <span className="text-sm text-gray-700">{task.typeTask}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaTasks className="text-gray-400" />
+            <span className={`px-2 py-1 text-xs font-medium rounded-xl ${statusColors[task.statutTask]}`}>
+              {task.statutTask}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaArchive className="text-gray-400" />
+            <span className={task.archived ? 'text-red-600' : 'text-green-600'}>
+              {task.archived ? 'Archived' : 'Active'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FaUser className="text-gray-400" />
+            <div className="flex items-center space-x-2">
+              {task.assignedUserProfilePhotoUrl ? (
+                <img
+                  src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
+                  alt={task.assignedUserUsername}
+                  className="h-6 w-6 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                  {getInitials(task.assignedUserUsername)}
+                </div>
+              )}
+              <span className="text-sm text-gray-700">{task.assignedUserUsername || 'Unassigned'}</span>
             </div>
-          )}
-          <span className="text-gray-700">{task.assignedUserUsername || 'Unassigned'}</span>
+          </div>
         </div>
+        {task.completedAt && (
+          <div className="flex items-center space-x-2">
+            <FaCalendarAlt className="text-gray-400" />
+            <span className="text-sm text-gray-500">
+              Completed: {new Date(task.completedAt).toLocaleDateString()}
+            </span>
+          </div>
+        )}
       </div>
-      {task.completedAt && (
-        <div>
-          <span className="font-medium text-gray-700">Completed at: </span>
-          <span className="text-gray-500">{new Date(task.completedAt).toLocaleDateString()}</span>
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
 
   const TaskModal = ({ isOpen, onClose, tasks, loading, opportunityTitle }) => {
     if (!isOpen) return null;
@@ -986,31 +1038,75 @@ const Opportunities = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-24 bg-gray-200/50 rounded-xl h-2 shadow-inner">
-                                  <div className="bg-indigo-500 h-2 rounded-xl transition-all duration-500 shadow-md" style={{ width: `${opp.progress}%` }} />
+                              {currentUser && (opp.owner?.id === currentUser.id || currentUser.role === 'SuperAdmin') ? (
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-24 bg-gray-200/50 rounded-xl h-2 shadow-inner">
+                                    <div className="bg-indigo-500 h-2 rounded-xl transition-all duration-500 shadow-md" style={{ width: `${opp.progress}%` }} />
+                                  </div>
+                                  <span className="text-sm text-indigo-600">{opp.progress}%</span>
+                                  <button
+                                    onClick={() => handleIncrementProgress(opp.id)}
+                                    className="p-1 bg-green-500 text-white rounded-xl shadow-md hover:bg-green-600 transition-all duration-200"
+                                    disabled={opp.progress >= 100}
+                                  >
+                                    <FaArrowUp />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDecrementProgress(opp.id)}
+                                    className="p-1 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition-all duration-200"
+                                    disabled={opp.progress <= 0}
+                                  >
+                                    <FaArrowDown />
+                                  </button>
                                 </div>
-                                <span className="text-sm text-indigo-600">{opp.progress}%</span>
-                                <button onClick={() => handleIncrementProgress(opp.id)} className="p-1 bg-green-500 text-white rounded-xl shadow-md hover:bg-green-600 transition-all duration-200">
-                                  <FaArrowUp />
-                                </button>
-                                <button onClick={() => handleDecrementProgress(opp.id)} className="p-1 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition-all duration-200">
-                                  <FaArrowDown />
-                                </button>
-                              </div>
+                              ) : (
+                                <div className="flex items-center space-x-2 relative group">
+                                  <div className="w-24 bg-gray-200/50 rounded-xl h-2 shadow-inner">
+                                    <div className="bg-indigo-500 h-2 rounded-xl" style={{ width: `${opp.progress}%` }} />
+                                  </div>
+                                  <span className="text-sm text-indigo-600">{opp.progress}%</span>
+                                  <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-2 -mt-10 left-1/2 transform -translate-x-1/2">
+                                    You are not authorized to modify progress.
+                                  </span>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3">
-                              <select
-                                value={opp.stage}
-                                onChange={(e) => handleChangeStage(opp.id, e.target.value)}
-                                className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
-                              >
-                                {Object.keys(stageMapping).map((key) => (
-                                  <option key={key} value={key} className="text-gray-700 font-medium">{stageMapping[key]}</option>
-                                ))}
-                              </select>
+                              {currentUser && (opp.owner?.id === currentUser.id || currentUser.role === 'SuperAdmin') ? (
+                                <select
+                                  value={opp.stage}
+                                  onChange={(e) => handleChangeStage(opp.id, e.target.value)}
+                                  className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+                                >
+                                  {Object.keys(stageMapping).map((key) => (
+                                    <option key={key} value={key} className="text-gray-700 font-medium">{stageMapping[key]}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="text-sm text-gray-700 relative group">
+                                  {stageMapping[opp.stage]}
+                                  <span className="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg p-2 -mt-10 left-1/2 transform -translate-x-1/2">
+                                    You are not authorized to change stage.
+                                  </span>
+                                </span>
+                              )}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">{opp.status}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {currentUser && (opp.owner?.id === currentUser.id || currentUser.role === 'SuperAdmin') && opp.stage === 'CLOSED' ? (
+                                <select
+                                  value={opp.status}
+                                  onChange={(e) => handleUpdateStatus(opp.id, e.target.value)}
+                                  className="p-1 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+                                >
+                                  <option value="WON">Won</option>
+                                  <option value="LOST">Lost</option>
+                                </select>
+                              ) : (
+                                <span className={opp.status === 'WON' ? 'text-green-600' : opp.status === 'LOST' ? 'text-red-600' : 'text-yellow-500'}>
+                                  {opp.status}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-700">
                               <div className="flex items-center space-x-2">
                                 {opp.owner?.profilePhotoUrl ? (
@@ -1029,15 +1125,29 @@ const Opportunities = () => {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleEdit(opp)}
-                                  className="p-2 text-indigo-600 rounded-xl shadow-md hover:bg-indigo-100 transition-all duration-200"
-                                >
-                                  <FaEdit />
-                                </button>
-                                <button onClick={() => handleDelete(opp.id)} className="p-2 text-red-600 rounded-xl shadow-md hover:bg-red-100 transition-all duration-200">
-                                  <FaTrash />
-                                </button>
+                                {currentUser && (opp.owner?.id === currentUser.id || currentUser.role === 'SuperAdmin') ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleEdit(opp)}
+                                      className="p-2 text-indigo-600 rounded-xl shadow-md hover:bg-indigo-100 transition-all duration-200"
+                                    >
+                                      <FaEdit />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(opp.id)}
+                                      className="p-2 text-red-600 rounded-xl shadow-md hover:bg-red-100 transition-all duration-200"
+                                    >
+                                      <FaTrash />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="relative group text-gray-500 text-sm italic">
+                                    View only
+                                    <span className="absolute hidden group-hover:block z-50 bg-gray-800 text-white text-xs rounded-md px-3 py-1 whitespace-nowrap -top-8 left-1/2 -translate-x-[75%] shadow-lg pointer-events-none">
+                                      You do not have permission to edit or delete this opportunity.
+                                    </span>
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -1062,7 +1172,7 @@ const Opportunities = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-all duration-500 animate-fadeIn">
+        <div className="grid grid=grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-all duration-500 animate-fadeIn">
           {stages.map((stage) => (
             <div
               key={stage.id}
@@ -1112,7 +1222,7 @@ const Opportunities = () => {
                     <div className="flex items-center mb-3">
                       <span className="text-sm text-gray-700 font-semibold mr-2">Priority:</span>
                       <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-xl shadow-sm ${priorityColors[opp.priority]}`}
+                        className={`px-3 py-1 text-xs font-semibold rounded-xl guarded-sm ${priorityColors[opp.priority]}`}
                       >
                         {priorityMapping[opp.priority]}
                       </span>
@@ -1585,6 +1695,7 @@ const Opportunities = () => {
               onIncrementProgress={() => handleIncrementProgress(expandedOpportunityId)}
               onDecrementProgress={() => handleDecrementProgress(expandedOpportunityId)}
               onUpdateStatus={(newStatus) => handleUpdateStatus(expandedOpportunityId, newStatus)}
+              currentUser={currentUser}
             />
           </div>
         </div>
@@ -1621,10 +1732,13 @@ const Opportunities = () => {
   );
 };
 
-const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit, onDelete, onChangeStage, onIncrementProgress, onDecrementProgress, onUpdateStatus }) => {
+const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit, onDelete, onChangeStage, onIncrementProgress, onDecrementProgress, onUpdateStatus, currentUser }) => {
   const [showTasks, setShowTasks] = useState(false);
 
   if (!opportunity) return null;
+
+  const isOwner = currentUser && opportunity.owner?.id === currentUser.id;
+  const isSuperAdmin = currentUser && currentUser.role === 'SuperAdmin';
 
   const getInitials = (name = '') => {
     if (!name) return '??';
@@ -1655,61 +1769,82 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
     NEGOTIATION: 'Négociation',
     CLOSED: 'Clôturé',
   };
+// Define TaskCard component outside Opportunities
+const TaskCard = ({ task }) => {
+  const priorityColors = {
+    HIGH: 'bg-red-500 text-white',
+    MEDIUM: 'bg-yellow-500 text-white',
+    LOW: 'bg-green-500 text-white',
+  };
 
-  const TaskCard = ({ task }) => (
-    <div className="bg-white p-3 rounded-lg shadow-md border border-gray-200 space-y-2">
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Title: </span>
-        <span className="text-gray-800 text-sm">{task.title}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Description: </span>
-        <span className="text-gray-600 text-sm">{task.description || 'No description'}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Priority: </span>
-        <span className={`px-2 py-1 text-xs rounded-xl ${priorityColors[task.priority]}`}>
-          {priorityMapping[task.priority]}
+  const statusColors = {
+    ToDo: 'bg-blue-100 text-blue-800',
+    InProgress: 'bg-yellow-100 text-yellow-800',
+    Done: 'bg-green-100 text-green-800',
+    Cancelled: 'bg-gray-100 text-gray-800',
+  };
+
+  const getInitials = (name = '') => {
+    if (!name) return '??';
+    const names = name.split(' ');
+    return names.map(n => n.charAt(0)).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all duration-200">
+      <div className="flex justify-between items-start mb-3">
+        <h4 className="text-lg font-semibold text-gray-800 truncate">{task.title}</h4>
+        <span className={`px-2 py-1 text-xs font-medium rounded-xl ${priorityColors[task.priority]}`}>
+          {task.priority}
         </span>
       </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Type: </span>
-        <span className="text-gray-700 text-sm">{task.typeTask}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Status: </span>
-        <span className="text-gray-700 text-sm">{task.statutTask}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Archived: </span>
-        <span className={task.archived ? 'text-red-600 text-sm' : 'text-green-600 text-sm'}>{task.archived ? 'Yes' : 'No'}</span>
-      </div>
-      <div>
-        <span className="font-medium text-gray-700 text-sm">Assigned to: </span>
-        <div className="inline-flex items-center space-x-2">
-          {task.assignedUserProfilePhotoUrl ? (
-            <img
-              src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
-              alt={task.assignedUserUsername}
-              className="h-5 w-5 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
-              {getInitials(task.assignedUserUsername)}
-            </div>
-          )}
-          <span className="text-gray-700 text-sm">{task.assignedUserUsername || 'Unassigned'}</span>
+      <p className="text-sm text-gray-600 mb-3">{task.description || 'No description'}</p>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="flex items-center space-x-2">
+          <FaTag className="text-gray-400" />
+          <span className="text-sm text-gray-700">{task.typeTask}</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <FaTasks className="text-gray-400" />
+          <span className={`px-2 py-1 text-xs font-medium rounded-xl ${statusColors[task.statutTask]}`}>
+            {task.statutTask}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <FaArchive className="text-gray-400" />
+          <span className={task.archived ? 'text-red-600' : 'text-green-600'}>
+            {task.archived ? 'Archived' : 'Active'}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <FaUser className="text-gray-400" />
+          <div className="flex items-center space-x-2">
+            {task.assignedUserProfilePhotoUrl ? (
+              <img
+                src={`http://localhost:8080${task.assignedUserProfilePhotoUrl}`}
+                alt={task.assignedUserUsername}
+                className="h-6 w-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs">
+                {getInitials(task.assignedUserUsername)}
+              </div>
+            )}
+            <span className="text-sm text-gray-700">{task.assignedUserUsername || 'Unassigned'}</span>
+          </div>
         </div>
       </div>
       {task.completedAt && (
-        <div>
-          <span className="font-medium text-gray-700 text-sm">Completed at: </span>
-          <span className="text-gray-500 text-sm">{new Date(task.completedAt).toLocaleDateString()}</span>
+        <div className="flex items-center space-x-2">
+          <FaCalendarAlt className="text-gray-400" />
+          <span className="text-sm text-gray-500">
+            Completed: {new Date(task.completedAt).toLocaleDateString()}
+          </span>
         </div>
       )}
     </div>
   );
-
+};
   return (
     <div className="relative w-full max-w-xl h-[600px] bg-white rounded-xl shadow-2xl p-12">
       <div className="absolute inset-4 overflow-hidden">
@@ -1720,18 +1855,16 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
         >
           <div className="flex justify-between items-start mb-8">
             <div className="flex items-center gap-3">
-             
               <h2 className="text-xl font-bold text-gray-800 break-words whitespace-pre-wrap max-w-[28ch]">
                 {opportunity.title}
               </h2>
-              
             </div>
             <button
-                onClick={onClose}
-                className="p-2 text-gray-500 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors duration-200"
-              >
-                <FaTimes className="w-6 h-6" />
-              </button>
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors duration-200"
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
           </div>
           <div className="space-y-4 text-gray-700">
             <div className="flex items-center gap-3">
@@ -1779,17 +1912,21 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
               <FaList className="text-gray-400 text-base" />
               <div className="flex items-center gap-2">
                 <span className="font-medium text-base">Stage: </span>
-                <select
-                  value={opportunity.stage}
-                  onChange={(e) => onChangeStage(e.target.value)}
-                  className="p-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
-                >
-                  {Object.keys(stageMapping).map((key) => (
-                    <option key={key} value={key} className="text-gray-700 font-medium">
-                      {stageMapping[key]}
-                    </option>
-                  ))}
-                </select>
+                {(isOwner || isSuperAdmin) ? (
+                  <select
+                    value={opportunity.stage}
+                    onChange={(e) => onChangeStage(e.target.value)}
+                    className="p-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+                  >
+                    {Object.keys(stageMapping).map((key) => (
+                      <option key={key} value={key} className="text-gray-700 font-medium">
+                        {stageMapping[key]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-gray-700">{stageMapping[opportunity.stage]}</span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -1803,39 +1940,44 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
                   />
                 </div>
                 <span className="text-sm text-indigo-600">{opportunity.progress}%</span>
-                <button
-                  onClick={onIncrementProgress}
-                  className="p-2 bg-green-500 text-white rounded-xl shadow-md hover:bg-green-600 transition-all duration-200"
-                >
-                  <FaArrowUp className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={onDecrementProgress}
-                  className="p-2 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition-all duration-200"
-                >
-                  <FaArrowDown className="w-4 h-4" />
-                </button>
+                {(isOwner || isSuperAdmin) ? (
+                  <>
+                    <button
+                      onClick={onIncrementProgress}
+                      className="p-2 bg-green-500 text-white rounded-xl shadow-md hover:bg-green-600 transition-all duration-200"
+                      disabled={opportunity.progress >= 100}
+                    >
+                      <FaArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={onDecrementProgress}
+                      className="p-2 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition-all duration-200"
+                      disabled={opportunity.progress <= 0}
+                    >
+                      <FaArrowDown className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : null}
               </div>
             </div>
             <div className="flex items-center gap-3">
               <FaCheck className="text-gray-400 text-base" />
               <div className="flex items-center gap-2">
                 <span className="font-medium text-base">Status: </span>
-                <select
-                  value={opportunity.status}
-                  onChange={(e) => onUpdateStatus(e.target.value)}
-                  className="p-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
-                  disabled={opportunity.stage !== 'CLOSED'}
-                >
-                  {opportunity.stage === 'CLOSED' ? (
-                    <>
-                      <option value="WON">Won</option>
-                      <option value="LOST">Lost</option>
-                    </>
-                  ) : (
-                    <option value="IN_PROGRESS">In Progress</option>
-                  )}
-                </select>
+                {(isOwner || isSuperAdmin) && opportunity.stage === 'CLOSED' ? (
+                  <select
+                    value={opportunity.status}
+                    onChange={(e) => onUpdateStatus(e.target.value)}
+                    className="p-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:bg-gray-200"
+                  >
+                    <option value="WON">Won</option>
+                    <option value="LOST">Lost</option>
+                  </select>
+                ) : (
+                  <span className={opportunity.status === 'WON' ? 'text-green-600' : opportunity.status === 'LOST' ? 'text-red-600' : 'text-yellow-500'}>
+                    {opportunity.status}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -1854,18 +1996,26 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
               <FaTasks className="mr-2 w-4 h-4" /> Show Tasks
             </button>
             <div className="flex gap-3">
-              <button
-                onClick={onEdit}
-                className="px-5 py-2 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
-              >
-                <FaEdit className="inline mr-2 w-4 h-4" /> Edit
-              </button>
-              <button
-                onClick={onDelete}
-                className="px-5 py-2 bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-300/50"
-              >
-                <FaTrash className="inline mr-2 w-4 h-4" /> Delete
-              </button>
+              {(isOwner || isSuperAdmin) ? (
+                <>
+                  <button
+                    onClick={onEdit}
+                    className="px-5 py-2 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-300/50"
+                  >
+                    <FaEdit className="inline mr-2 w-4 h-4" /> Edit
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="px-5 py-2 bg-red-600 text-white rounded-xl shadow-md hover:bg-red-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                  >
+                    <FaTrash className="inline mr-2 w-4 h-4" /> Delete
+                  </button>
+                </>
+              ) : (
+                <span className="text-gray-500 text-sm italic mt-3 relative group w-full text-center">
+                  View only
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1907,6 +2057,5 @@ const OpportunityDetails = ({ opportunity, tasks, loadingTasks, onClose, onEdit,
     </div>
   );
 };
-
 
 export default Opportunities;

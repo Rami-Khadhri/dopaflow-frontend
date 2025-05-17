@@ -531,7 +531,7 @@ const Reports = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Target</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Achieved</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-48">Progress</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-60">Progress</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Month</th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -578,10 +578,10 @@ const Reports = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">{performance.monthYear}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <div className="flex gap-2 justify-end">
+                            <td className="px-6 py-4 whitespace-nowrap text-justify">
+                              <div className="flex gap-1 justify-end">
                                 <button
-                                  className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 transition-all duration-200"
+                                  className="bg-blue-500 text-white px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-all duration-200"
                                   onClick={() => handleViewUserHistory(performance.userId)}
                                 >
                                   {showUserHistory[performance.userId] ? 'Hide History' : 'View History'}

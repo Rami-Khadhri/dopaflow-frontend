@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { FaCheck, FaExclamationCircle, FaTimes } from 'react-icons/fa'; // Added imports for MessageDisplay
 
+// SkeletonLoader remains unchanged
 const SkeletonLoader = () => {
   return (
     <div className="space-y-8 p-6 animate-pulse bg-gradient-to-br from-gray-50 to-gray-100">
@@ -60,6 +62,28 @@ const SkeletonLoader = () => {
   );
 };
 
+// MessageDisplay Component (as provided)
+const MessageDisplay = ({ message, type, onClose }) => {
+  if (!message) return null;
+
+  const bgColor = type === 'success' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700';
+
+  return (
+    <div className={`fixed top-5 left-1/2 transform -translate-x-1/2 mt-5 p-4 ${bgColor} border-l-4 rounded-xl shadow-lg flex items-center justify-between animate-slideIn max-w-3xl w-full z-[1000]`}>
+      <div className="flex items-center">
+        {type === 'success' ? <FaCheck className="text-xl mr-3" /> : <FaExclamationCircle className="text-xl mr-3" />}
+        <span className="text-base">{message}</span>
+      </div>
+      <button
+        onClick={onClose}
+        className="p-1 hover:bg-opacity-20 rounded-xl transition-colors duration-200"
+      >
+        <FaTimes className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
 const getUserRole = async () => {
   try {
     const token = localStorage.getItem('token');
@@ -100,14 +124,26 @@ const Reports = () => {
   const [historyYear, setHistoryYear] = useState(new Date().getFullYear());
   const [historyMonth, setHistoryMonth] = useState(new Date().getMonth() + 1);
   const [showUserHistory, setShowUserHistory] = useState({});
-  const [view, setView] = useState('main'); // 'main' or 'teamHistory'
+  const [view, setView] = useState('main');
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [message, setMessage] = useState(''); // New state for message
+  const [messageType, setMessageType] = useState(''); // New state for message type
   const currentUser = localStorage.getItem('username');
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+
+  // Function to show and auto-dismiss message
+  const showMessage = (msg, type) => {
+    setMessage(msg);
+    setMessageType(type);
+    setTimeout(() => {
+      setMessage('');
+      setMessageType('');
+    }, 5000); // Auto-dismiss after 5 seconds
+  };
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -122,6 +158,7 @@ const Reports = () => {
         console.error('Error fetching user role:', err);
         setRoleError('Failed to fetch user role');
         setUserRole('User');
+        showMessage('Failed to fetch user role', 'error');
       }
     };
 
@@ -152,6 +189,7 @@ const Reports = () => {
       } catch (err) {
         console.error('Error fetching report:', err);
         setError('Error loading report: ' + err.message);
+        showMessage('Error loading report: ' + err.message, 'error');
       } finally {
         setTimeout(() => {
           setIsLoading(false);
@@ -188,9 +226,11 @@ const Reports = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      showMessage('Excel report exported successfully', 'success');
     } catch (err) {
       console.error('Error exporting Excel:', err);
       setError('Error exporting Excel: ' + err.message);
+      showMessage('Error exporting Excel: ' + err.message, 'error');
     }
   };
 
@@ -220,9 +260,11 @@ const Reports = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      showMessage('PDF report exported successfully', 'success');
     } catch (err) {
       console.error('Error exporting PDF:', err);
       setError('Error exporting PDF: ' + err.message);
+      showMessage('Error exporting PDF: ' + err.message, 'error');
     }
   };
 
@@ -245,9 +287,11 @@ const Reports = () => {
       });
       const data = await response.json();
       setReportData(data);
+      showMessage('Global target set successfully', 'success');
     } catch (err) {
       console.error('Error saving global target:', err);
       setError('Error saving global target: ' + err.message);
+      showMessage('Error saving global target: ' + err.message, 'error');
     }
   };
 
@@ -258,7 +302,13 @@ const Reports = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUserHistory(prev => ({ ...prev, [userId]: response.data }));
-      setShowUserHistory(prev => ({ ...prev, [userId]: !prev[userId] }));
+      // Close all histories and toggle the target userId
+      setShowUserHistory(prev => {
+        const newShowUserHistory = {};
+        // If the history is already open, close it (all false); otherwise, open only this one
+        newShowUserHistory[userId] = !prev[userId];
+        return newShowUserHistory;
+      });
     } catch (err) {
       console.error('Error fetching user history:', err);
       setError('Error loading user history: ' + err.message);
@@ -274,18 +324,20 @@ const Reports = () => {
       });
       setTeamHistory(response.data);
       setView('teamHistory');
+      showMessage('Team history fetched successfully', 'success');
     } catch (err) {
       console.error('Error fetching team history:', err);
       setError('Error loading team history: ' + err.message);
+      showMessage('Error loading team history: ' + err.message, 'error');
     } finally {
-      setTimeout(() => setIsTransitioning(false), 400);
+      setTimeout(() => setIsTransitioning(false), 700); // Updated to match duration-700
     }
   };
 
   const handleBackToMain = () => {
     setIsTransitioning(true);
     setView('main');
-    setTimeout(() => setIsTransitioning(false), 400);
+    setTimeout(() => setIsTransitioning(false), 700); // Updated to match duration-700
   };
 
   const { keyIndicators, salesEvolution, salesPerformance } = reportData;
@@ -316,6 +368,16 @@ const Reports = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6 rounded-[10px] border relative overflow-hidden">
+      {/* Add MessageDisplay component */}
+      <MessageDisplay
+        message={message}
+        type={messageType}
+        onClose={() => {
+          setMessage('');
+          setMessageType('');
+        }}
+      />
+
       <div className={`relative transition-transform duration-700 ease-in-out transform ${view === 'teamHistory' ? '-translate-x-full' : 'translate-x-0'} ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
         {view === 'main' && (
           <div className="space-y-8">
@@ -484,7 +546,7 @@ const Reports = () => {
                             <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{performance.name}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">{parseFloat(performance.target).toLocaleString()} TND</td>
                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">{parseFloat(performance.achieved).toLocaleString()} TND</td>
-                            <td className="px-6 py-4 w-60">
+                            <td className="px-6 py-4 w-48">
                               <div className="flex items-center space-x-2">
                                 <div className="flex-1">
                                   <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -614,14 +676,14 @@ const Reports = () => {
             </div>
 
             <div className="text-center text-sm text-gray-500">
-            Last updated: {new Date().toLocaleString('en-US', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </div>
+              Last updated: {new Date().toLocaleString('en-US', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -672,7 +734,7 @@ const Reports = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">User</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Target</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Achieved</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Progress</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider w-48">Progress</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Month</th>
                   </tr>
                 </thead>
@@ -683,7 +745,7 @@ const Reports = () => {
                         <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{performance.name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-600">{parseFloat(performance.target).toLocaleString()} TND</td>
                         <td className="px-6 py-4 whitespace-nowrap text-gray-600">{parseFloat(performance.achieved).toLocaleString()} TND</td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 w-48">
                           <div className="flex items-center space-x-2">
                             <div className="flex-1">
                               <div className="w-full bg-gray-200 rounded-full h-2.5">

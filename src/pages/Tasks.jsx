@@ -1572,7 +1572,9 @@ const Tasks = () => {
   // Group archived tasks by opportunity
   const groupedArchivedTasks = useMemo(() => {
     if (!archivedTasks || !currentUser?.id) return {};
-    const filteredTasks = archivedTasks.filter(task => task.assignedUserId === currentUser.id);
+    const filteredTasks = !['SuperAdmin', 'Admin'].includes(currentUser.role)
+    ? archivedTasks.filter(task => task.assignedUserId === currentUser.id)
+    : archivedTasks;
     return filteredTasks.reduce((acc, task) => {
       const oppId = task.opportunityId;
       if (!acc[oppId]) {

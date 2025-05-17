@@ -1339,214 +1339,215 @@ const Opportunities = () => {
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">Title</label>
                 <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Enter opportunity title"
-                  required
-                />
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="Enter opportunity title"
+                required
+              />
               </div>
 
               <div className="space-y-1 w-full">
-                <label className="block text-sm font-medium text-gray-700">Contact</label>
-                <div className="relative w-full">
-                  {isContactLoading ? (
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
-                      <span>Loading contact...</span>
-                      <FaSpinner className="animate-spin text-gray-400" />
-                    </div>
-                  ) : formData.contactId ? (
-                    (() => {
-                      const selectedContact = contacts.find((contact) => contact.id === Number(formData.contactId));
-                      if (!selectedContact && preselectedContactId && preselectedContactName) {
-                        return (
-                          <div
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 cursor-pointer"
-                            onClick={() => setShowContactDropdown(!showContactDropdown)}
-                          >
-                            <div
-                              className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
-                            >
-                              {getInitials(preselectedContactName)}
-                            </div>
-                            <div className="flex flex-col flex-1 min-w-0">
-                              <span className="text-gray-900 font-medium break-words">{preselectedContactName}</span>
-                            </div>
-                            <svg
-                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                          </div>
-                        );
-                      }
-                      if (!selectedContact && contactFetchFailed) {
-                        return (
-                          <div
-                            className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg shadow-sm text-red-700 flex justify-between items-center cursor-pointer"
-                            onClick={() => setShowContactDropdown(!showContactDropdown)}
-                          >
-                            <span>Failed to load contact</span>
-                            <svg
-                              className={`w-5 h-5 text-red-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                          </div>
-                        );
-                      }
-                      if (!selectedContact) {
-                        return (
-                          <div
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center cursor-pointer"
-                            onClick={() => setShowContactDropdown(!showContactDropdown)}
-                          >
-                            <span>Contact not found</span>
-                            <svg
-                              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div
-                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 cursor-pointer"
-                          onClick={() => setShowContactDropdown(!showContactDropdown)}
-                        >
-                          {selectedContact.photoUrl ? (
-                            <img
-                              src={`http://localhost:8080${selectedContact.photoUrl}`}
-                              alt={selectedContact.name}
-                              className="h-8 w-8 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div
-                              className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                              style={{ backgroundColor: getColor() }}
-                            >
-                              {getInitials(selectedContact.name)}
-                            </div>
-                          )}
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-gray-900 font-medium break-words">{selectedContact.name}</span>
-                            {selectedContact.company?.name && (
-                              <span className="text-xs text-gray-600 break-words">{selectedContact.company.name}</span>
-                            )}
-                          </div>
-                          <svg
-                            className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                          </svg>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-400 flex justify-between items-center cursor-pointer"
-                      onClick={() => setShowContactDropdown(!showContactDropdown)}
-                    >
-                      <span>Select a contact</span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
-                    </div>
-                  )}
-
-                  {showContactDropdown && (
-                    <div ref={dropdownRef} className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto min-w-[300px]">
-                      <div className="p-2 border-b border-gray-200">
-                        <div className="relative">
-                          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                          <input
-                            type="text"
-                            value={contactSearch}
-                            onChange={handleContactSearch}
-                            className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="Search contacts..."
-                            autoFocus
-                          />
-                        </div>
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        <div
-                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500"
-                          onClick={() => {
-                            setFormData({ ...formData, contactId: null });
-                            setShowContactDropdown(false);
-                            setContactSearch('');
-                            setContactFetchFailed(false);
-                          }}
-                        >
-                          (None)
-                        </div>
-                        {filteredContacts.length > 0 ? (
-                          filteredContacts.map((contact) => (
-                            <div
-                              key={contact.id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3"
-                              onClick={() => {
-                                setFormData({ ...formData, contactId: contact.id });
-                                setShowContactDropdown(false);
-                                setContactSearch('');
-                                setContactFetchFailed(false);
-                              }}
-                            >
-                              <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
-                                style={{ backgroundColor: contact.photoUrl ? "transparent" : getColor() }}
-                              >
-                                {contact.photoUrl ? (
-                                  <img
-                                    src={`http://localhost:8080${contact.photoUrl}`}
-                                    alt={contact.name}
-                                    className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
-                                  />
-                                ) : (
-                                  getInitials(contact.name)
-                                )}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-gray-900 font-medium break-words">{contact.name}</span>
-                                {contact.company?.name && (
-                                  <span className="text-xs text-gray-600 break-words">{contact.company.name}</span>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-4 py-2 text-gray-500">No contacts found</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+    <label className="block text-sm font-medium text-gray-700">Contact</label>
+    <div className="relative w-full">
+      {isContactLoading ? (
+        <div className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center">
+          <span>Loading contact...</span>
+          <FaSpinner className="animate-spin text-gray-400" />
+        </div>
+      ) : formData.contactId ? (
+        (() => {
+          const selectedContact = contacts.find((contact) => contact.id === Number(formData.contactId));
+          if (!selectedContact && preselectedContactId && preselectedContactName) {
+            return (
+              <div
+                className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 cursor-pointer"
+                onClick={() => setShowContactDropdown(!showContactDropdown)}
+              >
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center bg-gray-300 text-white text-xs font-bold flex-shrink-0"
+                >
+                  {getInitials(preselectedContactName)}
                 </div>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="text-gray-900 font-medium truncate">{preselectedContactName}</span>
+                  <span className="text-xs text-gray-600 truncate">No company</span>
+                </div>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
               </div>
+            );
+          }
+          if (!selectedContact && contactFetchFailed) {
+            return (
+              <div
+                className="w-full px-4 py-3 h-[72px] bg-red-50 border border-red-200 rounded-lg shadow-sm text-red-700 flex justify-between items-center cursor-pointer"
+                onClick={() => setShowContactDropdown(!showContactDropdown)}
+              >
+                <span>Failed to load contact</span>
+                <svg
+                  className={`w-5 h-5 text-red-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            );
+          }
+          if (!selectedContact) {
+            return (
+              <div
+                className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex justify-between items-center cursor-pointer"
+                onClick={() => setShowContactDropdown(!showContactDropdown)}
+              >
+                <span>Contact not found</span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            );
+          }
+          return (
+            <div
+              className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 cursor-pointer"
+              onClick={() => setShowContactDropdown(!showContactDropdown)}
+            >
+              {selectedContact.photoUrl ? (
+                <img
+                  src={`http://localhost:8080${selectedContact.photoUrl}`}
+                  alt={selectedContact.name}
+                  className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: getColor() }}
+                >
+                  {getInitials(selectedContact.name)}
+                </div>
+              )}
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-gray-900 font-medium truncate">{selectedContact.name}</span>
+                <span className="text-xs text-gray-600 truncate">
+                  {selectedContact.company?.name || 'No company'}
+                </span>
+              </div>
+              <svg
+                className={`w-5 h-5 text-gray-400 transition-transform duration-200 flex-shrink-0 ${showContactDropdown ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          );
+        })()
+      ) : (
+        <div
+          className="w-full px-4 py-3 h-[72px] bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-400 flex justify-between items-center cursor-pointer"
+          onClick={() => setShowContactDropdown(!showContactDropdown)}
+        >
+          <span>Select a contact</span>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showContactDropdown ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+      )}
+
+      {showContactDropdown && (
+        <div ref={dropdownRef} className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto min-w-[300px]">
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={contactSearch}
+                onChange={handleContactSearch}
+                className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                placeholder="Search contacts..."
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            <div
+              className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-500"
+              onClick={() => {
+                setFormData({ ...formData, contactId: null });
+                setShowContactDropdown(false);
+                setContactSearch('');
+                setContactFetchFailed(false);
+              }}
+            >
+              (None)
+            </div>
+            {filteredContacts.length > 0 ? (
+              filteredContacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-3"
+                  onClick={() => {
+                    setFormData({ ...formData, contactId: contact.id });
+                    setShowContactDropdown(false);
+                    setContactSearch('');
+                    setContactFetchFailed(false);
+                  }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold shadow-md overflow-hidden flex-shrink-0"
+                    style={{ backgroundColor: contact.photoUrl ? "transparent" : getColor() }}
+                  >
+                    {contact.photoUrl ? (
+                      <img
+                        src={`http://localhost:8080${contact.photoUrl}`}
+                        alt={contact.name}
+                        className="w-8 h-8 rounded-full shadow-md ring-2 ring-teal-300 object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    ) : (
+                      getInitials(contact.name)
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-gray-900 font-medium truncate">{contact.name}</span>
+                    <span className="text-xs text-gray-600 truncate">
+                      {contact.company?.name || 'No company'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="px-4 py-2 text-gray-500">No contacts found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
 
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">Value (TND)</label>

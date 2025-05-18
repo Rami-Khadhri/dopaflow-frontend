@@ -13,20 +13,46 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('API request:', {
+      url: config.url,
+      method: config.method,
+      headers: config.headers,
+      data: config.data,
+    });
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  },
   (error) => {
-    // Skip redirect for 2FA-related endpoints
-    const is2FARelated = error.config.url.includes('/auth/verify-2fa') || error.config.url.includes('/api/users/suspend-self');
+    const url = error.config?.url || 'unknown';
+    console.error('API error:', {
+      url,
+      status: error.response?.status,
+      data: error.response?.data,
+      headers: error.response?.headers,
+    });
+    // Temporarily disable 401 redirect to test
+    /*
+    const is2FARelated = url.includes('/auth/verify-2fa') || url.includes('suspend-self');
     if (error.response?.status === 401 && !is2FARelated) {
+      console.log('401 error detected, would redirect to /login for:', url);
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
+    */
     return Promise.reject(error);
   }
 );

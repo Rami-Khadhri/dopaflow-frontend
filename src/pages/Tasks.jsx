@@ -574,6 +574,7 @@ const TaskCard = ({ task, onMove, onEdit, onDelete, column, isHighlighted, users
   );
 };
 
+
 // Add Task Modal Component
 const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = [], opportunities = [], loading, currentUser }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -615,14 +616,31 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
       setErrorMessage("Please assign a user to the task.");
       return false;
     }
+    // Validate deadline is at least 24 hours from now
+    const deadlineDate = new Date(newTask.deadline);
+    const now = new Date();
+    const minDeadline = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+    if (deadlineDate < minDeadline) {
+      setErrorMessage("Deadline must be at least tomorrow.");
+      return false;
+    }
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     setErrorMessage(null);
-    onSubmit(e);
+    try {
+      await onSubmit(e);
+    } catch (err) {
+      // Handle specific backend error for deadline under 24 hours
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('deadline')) {
+        setErrorMessage("Deadline must be at least tomorrow.");
+      } else {
+        setErrorMessage(err.response?.data?.message || "Failed to create task.");
+      }
+    }
   };
 
   const isRegularUser = currentUser?.role === "User";
@@ -775,7 +793,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
                         type="text"
                         value={search}
                         onChange={handleSearch}
-                        className="w-full px-4 py-2 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        className="w-full px-4 py-也不知道我应该从哪里开始修改？2 pl-10 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                         placeholder="Search users..."
                       />
                       {filteredUsers.length > 0 ? (
@@ -867,7 +885,7 @@ const AddTaskModal = ({ show, onClose, onSubmit, newTask, setNewTask, users = []
     </div>
   );
 };
-
+// Edit Task Modal Component
 // Edit Task Modal Component
 const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users = [], opportunities = [], loading, currentUser }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -1032,8 +1050,8 @@ const EditTaskModal = ({ show, onClose, onSubmit, editTask, setEditTask, users =
               ) : (
                 <>
                   <div
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 cursor-pointer"
-                    onClick={() => setShowDropdown(!showDropdown)}
+                    className={`w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm text-gray-700 flex items-center space-x-3 ${isTaskInProgress && !isAdmin ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                    onClick={isTaskInProgress && !isAdmin ? null : () => setShowDropdown(!showDropdown)}
                   >
                     {editTask.assignedUserId ? (
                       users
@@ -1685,37 +1703,37 @@ const Tasks = () => {
     deleteTaskMutation.mutate(taskToDelete.id);
   };
 
-  const handleEditClick = (task) => {
-    const localDeadline = new Date(task.deadline);
-    const formattedDeadline = localDeadline.toLocaleString('sv-SE', { 
-      timeZone: 'Europe/London', 
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).replace(' ', 'T');
-    const opportunity = opportunities?.find(op => op.id === task.opportunityId);
-    const allowedActions = getAllowedActions(task.statutTask, opportunity?.status);
-    const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin';
-    if (!(allowedActions.canEdit || (allowedActions.canEditAssignedTo && isAdmin))) {
-      setMessage('Cannot edit task: Not allowed based on current status.');
-      setMessageType('error');
-      return;
-    }
-    setEditTask({
-      id: task.id,
-      title: task.title,
-      description: task.description || '',
-      deadline: formattedDeadline,
-      priority: task.priority,
-      typeTask: task.typeTask,
-      assignedUserId: task.assignedUserId || '',
-      opportunityId: task.opportunityId || '',
-      statutTask: task.statutTask
-    });
-    setShowEditTaskModal(true);
-  };
+ const handleEditClick = (task) => {
+  const localDeadline = new Date(task.deadline);
+  const formattedDeadline = localDeadline.toLocaleString('sv-SE', { 
+    timeZone: 'Africa/Tunis', 
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(' ', 'T');
+  const opportunity = opportunities?.find(op => op.id === task.opportunityId);
+  const allowedActions = getAllowedActions(task.statutTask, opportunity?.status);
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'SuperAdmin';
+  if (!(allowedActions.canEdit || (allowedActions.canEditAssignedTo && isAdmin))) {
+    setMessage('Cannot edit task: Not allowed based on current status.');
+    setMessageType('error');
+    return;
+  }
+  setEditTask({
+    id: task.id,
+    title: task.title,
+    description: task.description || '',
+    deadline: formattedDeadline,
+    priority: task.priority,
+    typeTask: task.typeTask,
+    assignedUserId: task.assignedUserId || '',
+    opportunityId: task.opportunityId || '',
+    statutTask: task.statutTask
+  });
+  setShowEditTaskModal(true);
+};
 
   const filteredTasks = (tasksList) => {
     let filtered = tasksList.filter(task => task.archived === false);

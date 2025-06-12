@@ -18,6 +18,7 @@ const Signup = () => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+ const [birthDateError, setBirthDateError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
@@ -31,7 +32,20 @@ const Signup = () => {
   const validatePassword = (password) => {
     return password.length >= 8;
   };
+// Birthdate validation (must be at least 18 years old)
+const validateBirthDate = (birthDate) => {
+  const today = new Date('2025-06-12'); // Current date
+  const birth = new Date(birthDate);
+  const age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  const dayDiff = today.getDate() - birth.getDate();
 
+  // Adjust age if birthday hasn't occurred this year
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    return age - 1 >= 18;
+  }
+  return age >= 18;
+};
   // Handle email input change with validation
   const handleEmailChange = (e) => {
     const newEmail = e.target.value;
@@ -42,7 +56,16 @@ const Signup = () => {
       setEmailError('');
     }
   };
-
+// Handle birthdate input change with validation
+const handleBirthDateChange = (e) => {
+  const newBirthDate = e.target.value;
+  setBirthDate(newBirthDate);
+  if (newBirthDate && !validateBirthDate(newBirthDate)) {
+    setBirthDateError('You must be at least 18 years old.');
+  } else {
+    setBirthDateError('');
+  }
+};
   // Handle password input change with validation
   const handlePasswordChange = (e) => {
     const newPassword = e.target.value;
@@ -59,46 +82,51 @@ const Signup = () => {
     setTimeout(() => setIsVisible(true), 100);
   }, []);
 
-  // Handle "Next" button click
-  const handleNext = () => {
-    setError('');
+// Handle "Next" button click
+const handleNext = () => {
+  setError('');
 
-    if (step === 1) {
-      if (
-        !firstName.trim() || 
-        !lastName.trim() || 
-        firstName.trim().length < 2 || 
-        lastName.trim().length < 2 || 
-        !/^[a-zA-Z\s'-]+$/.test(firstName.trim()) || 
-        !/^[a-zA-Z\s'-]+$/.test(lastName.trim())
-      ) {
-        setError('Please enter valid first or last names.');
-        return;
-      }
-      setDirection('next');
-      setStep(2);
-    } else if (step === 2) {
-      if (!email || !birthDate) {
-        setError('Please fill in all fields.');
-        return;
-      }
-      if (!validateEmail(email)) {
-        setEmailError('Please enter a valid email address.');
-        return;
-      }
-      setDirection('next');
-      setStep(3);
+  if (step === 1) {
+    if (
+      !firstName.trim() || 
+      !lastName.trim() || 
+      firstName.trim().length < 2 || 
+      lastName.trim().length < 2 || 
+      !/^[a-zA-Z\s'-]+$/.test(firstName.trim()) || 
+      !/^[a-zA-Z\s'-]+$/.test(lastName.trim())
+    ) {
+      setError('Please enter valid first or last names.');
+      return;
     }
-  };
+    setDirection('next');
+    setStep(2);
+  } else if (step === 2) {
+    if (!email || !birthDate) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    if (!validateBirthDate(birthDate)) {
+      setBirthDateError('You must be at least 18 years old.');
+      return;
+    }
+    setDirection('next');
+    setStep(3);
+  }
+};
 
-  // Handle "Back" button click
-  const handleBack = () => {
-    setError('');
-    setEmailError('');
-    setPasswordError('');
-    setDirection('back');
-    setStep(step - 1);
-  };
+// Handle "Back" button click
+const handleBack = () => {
+  setError('');
+  setEmailError('');
+  setPasswordError('');
+  setBirthDateError('');
+  setDirection('back');
+  setStep(step - 1);
+};
 
   // Handle form submission on the final step
   const handleSignup = async (e) => {
@@ -365,20 +393,25 @@ const Signup = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Birth Date
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={birthDate}
-                          onChange={(e) => setBirthDate(e.target.value)}
-                          className="w-full px-4 py-3 pl-12 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-300 bg-gray-50 shadow-sm"
-                          required
-                        />
-                        <FaCalendarAlt className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                      </div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Birth Date
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={birthDate}
+                        onChange={handleBirthDateChange}
+                        className={`w-full px-4 py-3 pl-12 border-2 ${
+                          birthDateError ? 'border-red-500' : 'border-gray-200'
+                        } rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all duration-300 bg-gray-50 shadow-sm`}
+                        required
+                      />
+                      <FaCalendarAlt className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" />
                     </div>
+                    {birthDateError && (
+                      <p className="text-sm text-red-500 mt-1">{birthDateError}</p>
+                    )}
+                  </div>
                   </>
                 )}
 

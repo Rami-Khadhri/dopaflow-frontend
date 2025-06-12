@@ -233,13 +233,17 @@ const UserSidebar = ({ user, onClose, onEdit, onDelete, onStatusToggle, loading,
           <div className="flex-1">
             <h3 className="text-2xl font-semibold text-gray-900">{user.username}</h3>
             <div className="flex items-center mt-2 space-x-2">
-              <span className={`text-sm ml-5 px-3 py-1 rounded-full font-medium ${
-                user.status === 'Active'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-orange-100 text-orange-700'
-              }`}>
-                {user.status}
-              </span>
+             <span
+    className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+      user.status === 'Active'
+        ? 'bg-green-100 text-green-800'
+        : user.status === 'Inactive'
+        ? 'bg-red-100 text-red-800'
+        : 'bg-yellow-100 text-yellow-800'
+    }`}
+  >
+    {user.status === 'Inactive' ? 'Unauthorized' : user.status}
+  </span>
             </div>
           </div>
         </div>
@@ -780,9 +784,9 @@ const Users = ({ onlineUsers = [] }) => {
                 <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider">Birthdate</th>
                 <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wider">Verified</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {loading ? (
+               </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {loading ? (
                 Array.from({ length: usersPerPage }).map((_, index) => (
                   <tr key={index} className="animate-pulse">
                     <td className="px-4 sm:px-6 py-4">
@@ -881,16 +885,18 @@ const Users = ({ onlineUsers = [] }) => {
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                            user.status === 'Active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {user.status}
-                        </span>
-                      </td>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+                        user.status === 'Active'
+                          ? 'bg-green-100 text-green-800'
+                          : user.status === 'Inactive'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {user.status === 'Inactive' ? 'Unauthorized' : user.status}
+                    </span>
+                  </td>
                       <td className={`px-4 sm:px-6 py-4 text-left text-base sm:text-lg text-gray-600 ${user.status === 'Suspended' ? 'line-through text-gray-500' : ''}`}>
                         {formatBirthdate(user.birthdate)}
                       </td>
@@ -1014,6 +1020,7 @@ const Users = ({ onlineUsers = [] }) => {
                     >
                       <option value="Active">Active</option>
                       <option value="Suspended">Suspended</option>
+                      <option value="Inactive">Unauthorized</option>
                     </select>
                   </div>
                   <div>
